@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Transmissão P2P - Kaneki Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Paleta de Cores Red/Dark Ghoul */
+        :root {
+            --bg-primary: #121212; --bg-secondary: #1a1a1a; --bg-tertiary: #242424;
+            --accent-red: #da373c; --accent-red-hover: #b52a2e;
+            --text-normal: #e0e0e0; --text-muted: #888888;
+            --green: #23a559; --card-border: rgba(218, 55, 60, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'GG Sans', 'Segoe UI', Tahoma, sans-serif; 
+            background: var(--bg-primary); color: var(--text-normal); 
+            margin: 0; display: flex; height: 100vh; overflow: hidden; 
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-red); }
+        
+        #sidebar { 
+            width: 290px; background: var(--bg-secondary); display: flex; 
+            flex-direction: column; border-right: 1px solid var(--bg-tertiary);
+            box-shadow: 5px 0px 20px rgba(0, 0, 0, 0.6); z-index: 10;
+        }
+
+        .sidebar-content { padding: 25px 20px; display: flex; flex-direction: column; gap: 20px; flex: 1; overflow-y: auto; }
+
+        .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; }
+        
+        #main-container { flex: 1; display: flex; flex-direction: column; padding: 25px; }
+        
+        #stream-hub { 
+            flex: 1; background: #0a0a0a; border-radius: 16px; display: flex; 
+            align-items: center; justify-content: center; border: 1px solid var(--bg-tertiary); 
+            position: relative; box-shadow: inset 0px 0px 30px rgba(0,0,0,0.8);
+        }
+        
+        video { width: 100%; height: 100%; object-fit: contain; display: none; border-radius: 14px; background: black; }
+
+        .input-group { display: flex; gap: 8px; }
+        input { 
+            background: var(--bg-tertiary); color: white; width: 100%; 
+            padding: 10px; border-radius: 8px; border: 1px solid transparent;
+            font-size: 13px; outline: none; transition: all 0.3s ease; 
+        }
+        input:focus { border: 1px solid var(--accent-red); background: var(--bg-primary); }
+        
+        button.btn-primary { 
+            background: var(--accent-red); color: white; font-weight: bold; cursor: pointer; 
+            padding: 10px; border-radius: 8px; border: none; font-size: 13px; 
+            transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+        }
+        button.btn-primary:hover { background: var(--accent-red-hover); transform: translateY(-2px); }
+
+        .profile-area { 
+            display: flex; align-items: center; gap: 12px; background: var(--bg-tertiary); 
+            padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; 
+        }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-red); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
+
+        /* Lista de Amigos */
+        .friend-card { display: flex; align-items: center; justify-content: space-between; background: var(--bg-tertiary); padding: 10px; border-radius: 8px; border: 1px solid transparent; transition: 0.2s; margin-bottom: 8px; }
+        .friend-card:hover { border-color: var(--accent-red); }
+        .friend-info { display: flex; align-items: center; gap: 10px; }
+        .friend-avatar { width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; }
+        .btn-call-small { background: var(--green); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; font-size: 12px; }
+        .btn-call-small:hover { background: #1e8749; }
+
+        /* --- MINI-PERFIL TOKYO GHOUL --- */
+        .dev-wrapper { margin-top: auto; }
+        .dev-card { background: var(--bg-tertiary); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid var(--card-border); transition: all 0.3s ease; }
+        .dev-card:hover { box-shadow: 0 0 20px rgba(218, 55, 60, 0.3); border-color: var(--accent-red); }
+        .dev-banner { background-image: url('./banner.png'); background-size: cover; background-position: center; height: 75px; width: 100%; }
+        .dev-avatar-container { position: relative; width: 64px; height: 64px; margin-top: -32px; margin-left: 15px; border-radius: 50%; border: 4px solid var(--bg-tertiary); background-image: url('./perfil.png'); background-size: cover; background-position: center top; }
+        .dev-status { position: absolute; bottom: 0; right: 0; width: 18px; height: 18px; background: var(--green); border: 4px solid var(--bg-tertiary); border-radius: 50%; }
+        .dev-info { padding: 10px 15px 18px 15px; }
+        .dev-name { font-size: 17px; font-weight: 900; color: white; margin: 0; display: flex; align-items: center; gap: 6px; }
+        .dev-user { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+
+        #empty-state { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .radar { font-size: 55px; color: var(--accent-red); animation: radar-pulse 2s infinite; }
+        @keyframes radar-pulse { 0% { transform: scale(0.9); opacity: 0.3; } 50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px var(--accent-red)); } 100% { transform: scale(0.9); opacity: 0.3; } }
+        
+        /* Animação do Pop-up */
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        #status-text { color: var(--text-muted); font-size: 18px; margin: 0; font-weight: bold; }
+
+        #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
+        #video-controls button { width: auto; background: transparent; font-size: 15px; padding: 8px 16px; border: none; color: white; cursor: pointer;}
+        #video-controls button:hover { background: rgba(255,255,255,0.1); border-radius: 8px; }
+        #video-controls button.active { color: var(--accent-red); }
+    </style>
+</head>
+<body>
+
+    <!-- Pop-up de Pedido de Amizade -->
+    <div id="friend-request-popup" style="display: none; position: fixed; top: 30px; right: 30px; background: var(--bg-tertiary); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--accent-red); box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; width: 280px; animation: slideIn 0.3s ease;">
+        <div style="font-size: 12px; font-weight: 900; margin-bottom: 12px; color: var(--accent-red); text-transform: uppercase;">NOVO PEDIDO DE AMIZADE</div>
+        <div id="request-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+            <!-- Avatar e Nome entram aqui automaticamente -->
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button id="btn-accept" style="flex: 1; background: var(--green); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">Aceitar</button>
+            <button id="btn-reject" style="flex: 1; background: var(--bg-primary); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px;">Recusar</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="sidebar-content">
+            <!-- Adicionar Amigo -->
+            <div>
+                <h3 class="section-title">Adicionar Contato</h3>
+                <div class="input-group">
+                    <input type="text" id="new-friend-id" placeholder="Discord ID">
+                    <button class="btn-primary" onclick="addFriend()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+
+            <!-- Lista de Amigos -->
+            <div>
+                <h3 class="section-title">Meus Contatos</h3>
+                <div id="friends-list">
+                    <span style="font-size: 12px; color: var(--text-muted);">Nenhum amigo online...</span>
+                </div>
+            </div>
+
+            <!-- Desenvolvedor -->
+            <div class="dev-wrapper">
+                <h3 class="section-title" style="margin-bottom: 12px;">Desenvolvedor</h3>
+                <div class="dev-card">
+                    <div class="dev-banner"></div>
+                    <div class="dev-avatar-container">
+                        <div class="dev-status"></div>
+                    </div>
+                    <div class="dev-info">
+                        <div class="dev-name">Lanzin <i class="fa-solid fa-bolt" style="font-size: 13px; color: var(--accent-red);"></i></div>
+                        <div class="dev-user">lanzin.silva79</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-area">
+            <div class="avatar" id="my-avatar">
+                <i class="fa-brands fa-discord" style="color: white; font-size: 22px;"></i>
+            </div>
+            <div style="flex: 1;">
+                <div id="my-name" style="font-weight: bold; font-size: 14px; color: white;">Offline</div>
+                <button id="login-btn" style="padding: 6px; font-size: 11px; margin-top: 6px; background: var(--bg-primary); color: var(--text-muted); border: none; border-radius: 4px; cursor: pointer;">
+                    <i class="fa-solid fa-plug"></i> Conectar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="stream-hub">
+            <div id="empty-state">
+                <i class="fa-solid fa-radar radar"></i>
+                <h2 id="status-text">Aguardando Sinal...</h2>
+                <span style="color: #666; font-size: 13px; letter-spacing: 0.5px;">SISTEMA P2P OFFLINE</span>
+            </div>
+
+            <video id="remote-video" autoplay playsinline muted></video>
+            
+            <div id="video-controls">
+                <button id="toggle-audio-btn" title="Controle de Áudio">
+                    <i class="fa-solid fa-volume-xmark"></i> Mutado
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const { ipcRenderer } = require('electron');
+        let socket, peerConnection, myId;
+        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        
+        const videoEl = document.getElementById('remote-video');
+        const emptyState = document.getElementById('empty-state');
+        const statusText = document.getElementById('status-text');
+        const videoControls = document.getElementById('video-controls');
+        const audioBtn = document.getElementById('toggle-audio-btn');
+
+        audioBtn.addEventListener('click', () => {
+            if (videoEl.muted) {
+                videoEl.muted = false;
+                audioBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Áudio On';
+                audioBtn.classList.remove('active');
+                audioBtn.style.color = "var(--green)";
+            } else {
+                videoEl.muted = true;
+                audioBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Mutado';
+                audioBtn.classList.add('active');
+                audioBtn.style.color = "var(--accent-red)";
+            }
+        });
+
+        function loadProfile(user) {
+            myId = user.id;
+            document.getElementById('my-name').textContent = user.username;
+            document.getElementById('my-avatar').style.backgroundImage = `url(https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png)`;
+            document.getElementById('my-avatar').innerHTML = ''; 
+            document.getElementById('login-btn').style.display = 'none';
+            connectServer(user);
+        }
+
+        const savedUser = localStorage.getItem('discordUser');
+        if (savedUser) loadProfile(JSON.parse(savedUser));
+
+        document.getElementById('login-btn').addEventListener('click', () => {
+            ipcRenderer.send('login-discord', '1539796777908043907');
+        });
+
+        ipcRenderer.on('login-success', (e, user) => {
+            localStorage.setItem('discordUser', JSON.stringify(user));
+            loadProfile(user);
+        });
+
+        function connectServer(userData) {
+            socket = io('https://meu-servidor-discord-production.up.railway.app/'); 
+            socket.emit('registrar', userData);
+
+            socket.on('carregar-amigos', (amigos) => {
+                const listContainer = document.getElementById('friends-list');
+                listContainer.innerHTML = ''; 
+                
+                if(amigos.length === 0) {
+                    listContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">Nenhum amigo adicionado.</span>';
+                    return;
+                }
+
+                amigos.forEach(amigo => {
+                    const div = document.createElement('div');
+                    div.className = 'friend-card';
+                    div.innerHTML = `
+                        <div class="friend-info">
+                            <div class="friend-avatar" style="background-image: url('https://cdn.discordapp.com/avatars/${amigo.discordId}/${amigo.avatar}.png')"></div>
+                            <span style="font-size: 13px; font-weight: bold;">${amigo.username}</span>
+                        </div>
+                        <button class="btn-call-small" onclick="iniciarChamada('${amigo.discordId}')">
+                            <i class="fa-solid fa-phone"></i>
+                        </button>
+                    `;
+                    listContainer.appendChild(div);
+                });
+            });
+
+            // Escuta quando chega um pedido de amizade
+            socket.on('pedido-amizade', (dadosPedido) => {
+                const popup = document.getElementById('friend-request-popup');
+                const info = document.getElementById('request-info');
+                
+                // Monta a foto e o nome de quem enviou
+                info.innerHTML = `
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background-image: url('https://cdn.discordapp.com/avatars/${dadosPedido.deId}/${dadosPedido.avatar}.png'); background-size: cover; border: 2px solid var(--bg-secondary);"></div>
+                    <span style="font-size: 14px; font-weight: bold; color: white;">${dadosPedido.nome}</span>
+                `;
+                
+                popup.style.display = 'block';
+
+                // Ação do botão Aceitar
+                document.getElementById('btn-accept').onclick = () => {
+                    socket.emit('aceitar-amizade', { meuId: myId, deId: dadosPedido.deId });
+                    popup.style.display = 'none';
+                };
+
+                // Ação do botão Recusar
+                document.getElementById('btn-reject').onclick = () => {
+                    popup.style.display = 'none';
+                };
+            });
+
+            socket.on('chamada-recebida', async data => {
+                createPeer(data.de);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('responder-chamada', { answer, para: data.de });
+                
+                document.querySelector('.radar').className = "fa-solid fa-tower-broadcast radar";
+                document.querySelector('.radar').style.color = "var(--green)";
+                statusText.textContent = "Conectado!";
+            });
+
+            socket.on('resposta-recebida', async answer => {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            });
+
+            socket.on('ice-candidate', candidate => {
+                peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            });
+        }
+
+        function createPeer(targetSocketId) {
+            peerConnection = new RTCPeerConnection(config);
+            
+            peerConnection.onicecandidate = e => {
+                if (e.candidate) socket.emit('ice-candidate', { candidate: e.candidate, para: targetSocketId });
+            };
+            
+            peerConnection.ontrack = e => {
+                emptyState.style.display = 'none';
+                videoEl.style.display = 'block';
+                videoControls.style.display = 'flex';
+                videoEl.srcObject = e.streams[0];
+            };
+            return targetSocketId;
+        }
+
+        async function iniciarChamada(friendId) {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                createPeer(friendId);
+                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('chamar-amigo', { offer, para: friendId, deId: myId });
+                
+                document.querySelector('.radar').className = "fa-solid fa-tower-broadcast radar";
+                document.querySelector('.radar').style.color = "var(--green)";
+                statusText.textContent = "Transmitindo...";
+            } catch (err) { console.error("Erro na chamada:", err); }
+        }
+
+        function addFriend() {
+            const friendId = document.getElementById('new-friend-id').value;
+            if (friendId && myId) {
+                socket.emit('adicionar-amigo', { meuId: myId, amigoId: friendId });
+                document.getElementById('new-friend-id').value = '';
+            } else {
+                alert("Conecte-se e digite um ID válido!");
+            }
+        }
+    </script>
+</body>
+</html>
