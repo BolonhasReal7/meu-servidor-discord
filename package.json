@@ -20,7 +20,8 @@
     }
   },
   "dependencies": {
-    "mongoose": "^8.0.0"
+    "mongoose": "^8.24.4",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "electron": "^29.4.6",
