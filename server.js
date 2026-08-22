@@ -26,6 +26,13 @@ const User = mongoose.model('User', userSchema);
 
 let usuariosConectados = {};
 
+// ==========================================
+// ROTA DE SINAL DE VIDA PARA O RAILWAY
+// ==========================================
+app.get('/', (req, res) => {
+    res.send('Servidor Kaneki Online e Roteando!');
+});
+
 io.on('connection', (socket) => {
     console.log('🔌 Novo dispositivo conectado. Socket ID:', socket.id);
 
@@ -45,16 +52,13 @@ io.on('connection', (socket) => {
     socket.on('adicionar-amigo', async (data) => {
         console.log("\n====================================");
         console.log("📩 ALGUÉM CLICOU NO BOTAO DE +");
-        console.log("Dados recebidos do aplicativo:", data);
-        console.log("Quem está online no momento:", usuariosConectados);
+        console.log("Dados recebidos do app:", data);
         
         const { meuId, amigoId } = data;
         const eu = await User.findOne({ discordId: meuId });
         
         if(eu) {
             const socketDoAmigo = usuariosConectados[amigoId];
-            console.log(`Procurando o amigo ${amigoId}... Achou?`, socketDoAmigo ? "SIM" : "NÃO");
-            
             if(socketDoAmigo) {
                 io.to(socketDoAmigo).emit('pedido-amizade', {
                     deId: meuId,
@@ -65,8 +69,6 @@ io.on('connection', (socket) => {
             } else {
                 console.log("❌ O amigo não está na lista de conectados!");
             }
-        } else {
-            console.log("❌ O usuário que enviou não foi encontrado no banco de dados.");
         }
         console.log("====================================\n");
     });
@@ -88,6 +90,24 @@ io.on('connection', (socket) => {
         }
     });
 
+    // ==========================================
+    // SISTEMA DE WEBRTC P2P (LIGAÇÃO)
+    // ==========================================
+    socket.on('chamar-amigo', (data) => {
+        const socketDoAmigo = usuariosConectados[data.para];
+        if(socketDoAmigo) {
+            io.to(socketDoAmigo).emit('chamada-recebida', { offer: data.offer, de: socket.id });
+        }
+    });
+
+    socket.on('responder-chamada', (data) => {
+        io.to(data.para).emit('resposta-recebida', data.answer);
+    });
+
+    socket.on('ice-candidate', (data) => {
+        io.to(data.para).emit('ice-candidate', data.candidate);
+    });
+
     socket.on('disconnect', () => {
         for (let id in usuariosConectados) {
             if (usuariosConectados[id] === socket.id) {
@@ -99,7 +119,10 @@ io.on('connection', (socket) => {
     });
 });
 
+// ==========================================
+// FORÇANDO A PORTA PARA O RAILWAY
+// ==========================================
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🔥 Servidor rodando perfeitamente na porta ${PORT}...`);
 });
