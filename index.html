@@ -125,6 +125,7 @@
 </head>
 <body>
 
+    <!-- POPUP DE TERMOS -->
     <div id="terms-popup" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
         <div style="background: var(--bg-tertiary); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red); width: 400px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
             <h2 style="color: var(--accent-red); margin-top: 0;">⚠️ Regras de Segurança</h2>
@@ -135,6 +136,7 @@
         </div>
     </div>
 
+    <!-- POPUP DE AMIZADE -->
     <div id="friend-request-popup" style="display: none; position: fixed; top: 30px; right: 30px; background: var(--bg-tertiary); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--accent-red); box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; width: 280px;">
         <div style="font-size: 12px; font-weight: 900; margin-bottom: 12px; color: var(--accent-red);">NOVO PEDIDO DE AMIZADE</div>
         <div id="request-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;"></div>
@@ -144,6 +146,18 @@
         </div>
     </div>
 
+    <!-- POPUP DE CHAMADA RECEBIDA -->
+    <div id="incoming-call-popup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-secondary); padding: 30px; border-radius: 16px; border: 1px solid var(--green); box-shadow: 0 10px 50px rgba(0,0,0,0.9); z-index: 2000; text-align: center; min-width: 320px;">
+        <i class="fa-solid fa-phone-volume" style="font-size: 40px; color: var(--green); margin-bottom: 15px; animation: radar-pulse 1.5s infinite;"></i>
+        <div style="font-size: 14px; font-weight: 900; margin-bottom: 5px; color: var(--green);">CHAMADA RECEBIDA</div>
+        <div id="call-caller-name" style="color: white; margin-bottom: 25px; font-size: 18px;">Alguém está ligando...</div>
+        <div style="display: flex; gap: 10px;">
+            <button id="btn-accept-call" style="flex: 1; background: var(--green); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;"><i class="fa-solid fa-phone"></i> Aceitar</button>
+            <button id="btn-reject-call" style="flex: 1; background: var(--accent-red); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;"><i class="fa-solid fa-phone-slash"></i> Recusar</button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
     <div id="sidebar">
         <div class="sidebar-content">
             <div>
@@ -214,6 +228,7 @@
         </div>
     </div>
 
+    <!-- MAIN CONTENT -->
     <div id="main-container">
         <div id="stream-hub">
             <div id="empty-state">
@@ -263,7 +278,12 @@
         let socket, peerConnection, myId, dataChannel;
         let localStream = null; 
         let currentPeerId = null;
+        let pendingCallData = null; // Armazena os dados da chamada enquanto o usuário decide
         
+        // Criando o som de ringtone (loop)
+        const ringtoneAudio = new Audio('https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg');
+        ringtoneAudio.loop = true;
+
         const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
         
         const videoEl = document.getElementById('remote-video');
@@ -432,6 +452,12 @@
         function playSound() { new Audio('https://actions.google.com/sounds/v1/ambiences/beep_short.ogg').play().catch(e=>{}); }
 
         function encerrarChamada() {
+            // Se estiver tocando o ringtone, para
+            ringtoneAudio.pause();
+            ringtoneAudio.currentTime = 0;
+            document.getElementById('incoming-call-popup').style.display = 'none';
+            pendingCallData = null;
+
             if (peerConnection) { peerConnection.close(); peerConnection = null; }
             if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
             videoEl.style.display = 'none'; videoEl.srcObject = null;
@@ -443,14 +469,48 @@
         }
         document.getElementById('stop-call-btn').addEventListener('click', encerrarChamada);
 
-        // --- ATUALIZAÇÃO DO PERFIL E LOGOUT ---
+        // --- SISTEMA DE ACEITAR/RECUSAR CHAMADA --- //
+        document.getElementById('btn-accept-call').addEventListener('click', async () => {
+            document.getElementById('incoming-call-popup').style.display = 'none';
+            ringtoneAudio.pause(); ringtoneAudio.currentTime = 0; // Para a música
+
+            if (pendingCallData) {
+                currentPeerId = pendingCallData.de;
+                createPeer(pendingCallData.de);
+                
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    setupDataChannel(dataChannel);
+                };
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingCallData.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('responder-chamada', { answer, para: pendingCallData.de });
+                
+                document.querySelector('.radar').style.color = "var(--green)";
+                statusText.textContent = "Conectado!";
+                pendingCallData = null;
+            }
+        });
+
+        document.getElementById('btn-reject-call').addEventListener('click', () => {
+            document.getElementById('incoming-call-popup').style.display = 'none';
+            ringtoneAudio.pause(); ringtoneAudio.currentTime = 0; // Para a música
+
+            if (pendingCallData) {
+                socket.emit('rejeitar-chamada', { para: pendingCallData.de });
+                pendingCallData = null;
+            }
+        });
+        // ------------------------------------------ //
+
         function loadProfile(user) {
             myId = user.id;
             document.getElementById('my-name').textContent = user.global_name || user.username;
             document.getElementById('my-avatar').style.backgroundImage = `url(https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png)`;
             document.getElementById('my-avatar').innerHTML = ''; 
             
-            // Alterna os botões
             document.getElementById('login-btn').style.display = 'none';
             document.getElementById('logout-btn').style.display = 'block';
             
@@ -464,7 +524,6 @@
                 window.location.reload();
             }
         });
-        // --------------------------------------
 
         const savedUser = localStorage.getItem('discordUser');
         if (savedUser) loadProfile(JSON.parse(savedUser));
@@ -579,26 +638,31 @@
                 document.getElementById('btn-reject').onclick = () => popup.style.display = 'none';
             });
 
-            socket.on('chamada-recebida', async data => {
+            // RECEBENDO O SINAL DE CHAMADA
+            socket.on('chamada-recebida', data => {
                 if(usuariosBloqueados.includes(data.de)) return;
-                currentPeerId = data.de;
-                createPeer(data.de);
                 
-                peerConnection.ondatachannel = (event) => {
-                    dataChannel = event.channel;
-                    setupDataChannel(dataChannel);
-                };
+                // Em vez de atender direto, armazena os dados, toca som e exibe popup
+                pendingCallData = data;
+                document.getElementById('call-caller-name').textContent = `${data.nome} está ligando...`;
+                document.getElementById('incoming-call-popup').style.display = 'block';
+                
+                ringtoneAudio.play().catch(e => console.log("O navegador bloqueou o áudio automático."));
+            });
 
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                socket.emit('responder-chamada', { answer, para: data.de });
-                
-                document.querySelector('.radar').style.color = "var(--green)";
+            // QUANDO QUEM LIGOU RECEBE A RESPOSTA POSITIVA (ATENDEU)
+            socket.on('resposta-recebida', async answer => {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                document.querySelector('.radar').style.color = "var(--green)"; 
                 statusText.textContent = "Conectado!";
             });
 
-            socket.on('resposta-recebida', async answer => await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)));
+            // QUANDO QUEM LIGOU RECEBE A RESPOSTA NEGATIVA (RECUSOU)
+            socket.on('chamada-rejeitada', () => {
+                alert("Sua chamada foi recusada.");
+                encerrarChamada();
+            });
+
             socket.on('ice-candidate', candidate => { if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); });
             socket.on('chamada-encerrada', encerrarChamada);
         }
@@ -631,10 +695,14 @@
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-                socket.emit('chamar-amigo', { offer, para: friendId, deId: myId });
                 
-                document.querySelector('.radar').style.color = "var(--green)"; 
-                statusText.textContent = "Transmitindo...";
+                const meuNome = document.getElementById('my-name').textContent;
+                
+                // Dispara a chamada enviando também o seu nome
+                socket.emit('chamar-amigo', { offer, para: friendId, deId: myId, nome: meuNome });
+                
+                document.querySelector('.radar').style.color = "#ff9800"; // Cor laranja para "chamando"
+                statusText.textContent = "Chamando...";
                 videoControls.style.display = 'flex';
                 localStream.getVideoTracks()[0].onended = encerrarChamada;
             } catch (err) { 

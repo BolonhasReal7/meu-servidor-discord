@@ -18,23 +18,18 @@ const usersData = {};
 io.on('connection', (socket) => {
     console.log(`🟢 Nova conexão recebida: ${socket.id}`);
 
-    // 1. SISTEMA DE LOGIN E REGISTRO
     socket.on('registrar', (data) => {
         const discordId = data.user.id;
-        
         socketToDiscord[socket.id] = discordId;
         discordToSocket[discordId] = socket.id;
         usersData[discordId] = data.user;
-
         console.log(`👤 Registrado: ${data.user.username} (${discordId})`);
     });
 
-    // 2. STATUS PERSONALIZADO
     socket.on('atualizar-status', (data) => {
         io.emit('status-atualizado', data); 
     });
 
-    // 3. SISTEMA DE ADICIONAR/REMOVER AMIGOS
     socket.on('adicionar-amigo', (data) => {
         const { meuId, amigoId } = data;
         const socketDoAmigo = discordToSocket[amigoId];
@@ -76,11 +71,12 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. SINALIZAÇÃO WEBRTC
+    // --- SINALIZAÇÃO WEBRTC E CHAMADAS ---
     socket.on('chamar-amigo', (data) => {
         const socketDestino = discordToSocket[data.para];
         if (socketDestino) {
-            io.to(socketDestino).emit('chamada-recebida', { offer: data.offer, de: data.deId });
+            // Agora enviamos também o "nome" para exibir no popup
+            io.to(socketDestino).emit('chamada-recebida', { offer: data.offer, de: data.deId, nome: data.nome });
         }
     });
 
@@ -88,6 +84,14 @@ io.on('connection', (socket) => {
         const socketDestino = discordToSocket[data.para];
         if (socketDestino) {
             io.to(socketDestino).emit('resposta-recebida', data.answer);
+        }
+    });
+
+    // NOVO EVENTO: Se a pessoa clicar em "Recusar"
+    socket.on('rejeitar-chamada', (data) => {
+        const socketDestino = discordToSocket[data.para];
+        if (socketDestino) {
+            io.to(socketDestino).emit('chamada-rejeitada');
         }
     });
 
@@ -101,15 +105,12 @@ io.on('connection', (socket) => {
         if (socketDestino) io.to(socketDestino).emit('chamada-encerrada');
     });
 
-    // 5. DENÚNCIAS
     socket.on('reportar-usuario', (data) => {
         console.warn(`🚨 ALERTA: Usuário ${data.denunciante} denunciou o ID: ${data.infrator}`);
     });
 
-    // 6. SISTEMA DE PRESENÇA (ONLINE/OFFLINE)
     socket.on('disconnect', () => {
         const discordIdQueCaiu = socketToDiscord[socket.id];
-        
         if (discordIdQueCaiu) {
             console.log(`🔴 Usuário Desconectado: ${discordIdQueCaiu}`);
             socket.broadcast.emit('amigo-offline', discordIdQueCaiu);
