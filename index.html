@@ -127,7 +127,6 @@
 </head>
 <body>
 
-    <!-- Pop-up de Termos de Uso e Pop-up de Amizade (Omitidos aqui por brevidade visual, mas mantenha-os intactos) -->
     <div id="terms-popup" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
         <div style="background: var(--bg-tertiary); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red); width: 400px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
             <h2 style="color: var(--accent-red); margin-top: 0;">⚠️ Regras de Segurança</h2>
@@ -159,6 +158,15 @@
             </div>
 
             <div>
+                <h3 class="section-title">Modo de Transmissão</h3>
+                <select id="capture-mode">
+                    <option value="monitor">Tela Inteira</option>
+                    <option value="window">Apenas uma Janela</option>
+                    <option value="camera">Câmera (Webcam)</option>
+                </select>
+            </div>
+
+            <div>
                 <h3 class="section-title">Status Personalizado</h3>
                 <input type="text" id="status-custom" placeholder="Ex: Jogando, Estudando..." oninput="salvarStatusCustom()">
             </div>
@@ -183,7 +191,6 @@
                 <div id="blocked-list"></div>
             </div>
             
-            <!-- Desenvolvedor -->
             <div class="dev-wrapper">
                 <h3 class="section-title" style="margin-bottom: 12px;">Desenvolvedor</h3>
                 <div class="dev-card">
@@ -222,7 +229,6 @@
                 <button id="pip-btn" onclick="togglePiP()" title="Tela Flutuante"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> PiP</button>
                 <button onclick="playSound()" title="Efeito Sonoro"><i class="fa-solid fa-music"></i> FX</button>
                 
-                <!-- NOVO BOTÃO: Chat Fantasma -->
                 <button id="chat-toggle-btn" onclick="toggleChat()" style="color: #00f3ff;" title="Chat Criptografado">
                     <i class="fa-solid fa-message"></i> Chat
                 </button>
@@ -232,7 +238,6 @@
                 <button id="report-btn" title="Denunciar e Bloquear" style="color: #ff9800;"><i class="fa-solid fa-triangle-exclamation"></i></button>
             </div>
 
-            <!-- CHAT FANTASMA LATERAL -->
             <div id="chat-panel">
                 <div class="chat-header">
                     <h3><i class="fa-solid fa-user-ninja"></i> Chat Privado P2P</h3>
@@ -266,7 +271,6 @@
         const statusText = document.getElementById('status-text');
         const videoControls = document.getElementById('video-controls');
         
-        // --- 1. SISTEMA DE TEMAS E STATUS REAL-TIME ---
         function mudarTema(tema) {
             if(tema === 'default') document.documentElement.removeAttribute('data-theme');
             else document.documentElement.setAttribute('data-theme', tema);
@@ -281,7 +285,6 @@
             const statusVal = document.getElementById('status-custom').value;
             localStorage.setItem('userCustomStatus', statusVal);
             
-            // Envia para o servidor retransmitir aos amigos
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 if(socket && myId) {
@@ -293,7 +296,6 @@
         const savedStatus = localStorage.getItem('userCustomStatus');
         if(savedStatus) document.getElementById('status-custom').value = savedStatus;
 
-        // --- 2. SISTEMA DE CHAT FANTASMA & ARQUIVOS (P2P DataChannel) ---
         function toggleChat() {
             document.getElementById('chat-panel').classList.toggle('open');
         }
@@ -339,7 +341,6 @@
                         receivingFileMeta = null;
                     }
                 } else {
-                    // Recebendo pedaços (chunks) do arquivo em ArrayBuffer
                     receiveBuffer.push(event.data);
                 }
             };
@@ -358,7 +359,7 @@
         function sendFile(file) {
             if(!file || !dataChannel || dataChannel.readyState !== 'open') return;
             
-            const chunkSize = 16384; // 16KB por pacote (limite seguro do WebRTC)
+            const chunkSize = 16384; 
             let offset = 0;
             
             dataChannel.send(JSON.stringify({ type: 'file-start', name: file.name, size: file.size, fileType: file.type }));
@@ -383,7 +384,6 @@
             readSlice(0);
         }
 
-        // --- CÓDIGO ANTERIOR MANTIDO (Termos, Bloqueios, PiP, Soundboard, etc) ---
         if (!localStorage.getItem('termosAceitos')) {
             document.getElementById('btn-accept-terms').onclick = () => { localStorage.setItem('termosAceitos', 'true'); document.getElementById('terms-popup').style.display = 'none'; };
         } else { document.getElementById('terms-popup').style.display = 'none'; }
@@ -425,7 +425,6 @@
             }
         });
 
-        // Controles de Áudio e PTT
         document.addEventListener('keydown', (e) => { if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); setMicState(true); } });
         document.addEventListener('keyup', (e) => { if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { setMicState(false); } });
 
@@ -458,10 +457,9 @@
         }
         document.getElementById('stop-call-btn').addEventListener('click', encerrarChamada);
 
-        // --- SISTEMA DE LOGIN ---
         function loadProfile(user) {
             myId = user.id;
-            document.getElementById('my-name').textContent = user.username;
+            document.getElementById('my-name').textContent = user.global_name || user.username;
             document.getElementById('my-avatar').style.backgroundImage = `url(https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png)`;
             document.getElementById('my-avatar').innerHTML = ''; 
             document.getElementById('login-btn').style.display = 'none';
@@ -473,8 +471,7 @@
         document.getElementById('login-btn').addEventListener('click', () => ipcRenderer.send('login-discord', '1539796777908043907'));
         ipcRenderer.on('login-success', (e, user) => { localStorage.setItem('discordUser', JSON.stringify(user)); loadProfile(user); });
 
-        // --- CONEXÃO E P2P ---
-        let amigosStatus = {}; // Guarda o status dinâmico
+        let amigosStatus = {};
 
         function renderizarListaAmigos(amigos) {
             const listContainer = document.getElementById('friends-list');
@@ -483,6 +480,9 @@
 
             amigos.forEach(amigo => {
                 const currentStatus = amigosStatus[amigo.discordId] || "Disponível";
+                const colorStatus = currentStatus === "Offline" ? "var(--text-muted)" : "var(--text-normal)";
+                const iconStatus = currentStatus === "Offline" ? "😴" : "🎮";
+
                 const div = document.createElement('div');
                 div.className = 'friend-card';
                 div.innerHTML = `
@@ -491,7 +491,7 @@
                             <div class="friend-avatar" style="background-image: url('https://cdn.discordapp.com/avatars/${amigo.discordId}/${amigo.avatar}.png')"></div>
                             <span style="font-size: 13px; font-weight: bold;">${amigo.username}</span>
                         </div>
-                        <div class="friend-status-text" id="status-user-${amigo.discordId}">🎮 ${currentStatus}</div>
+                        <div class="friend-status-text" id="status-user-${amigo.discordId}" style="color: ${colorStatus};">${iconStatus} ${currentStatus}</div>
                     </div>
                     <button class="btn-call-small" onclick="iniciarChamada('${amigo.discordId}')"><i class="fa-solid fa-phone"></i></button>
                 `;
@@ -505,20 +505,49 @@
             socket.on('connect', () => {
                 const savedFriends = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
                 socket.emit('registrar', { user: userData, friends: savedFriends });
-                // Envia meu status inicial ao conectar
                 if(savedStatus) socket.emit('atualizar-status', { id: myId, status: savedStatus });
             });
+
+            // --- SISTEMA DE PRESENÇA ADICIONADO AQUI --- //
+
+            // Quando VOCÊ perde conexão com o servidor
+            socket.on('disconnect', () => {
+                document.getElementById('my-name').innerHTML = 'Desconectado <i class="fa-solid fa-triangle-exclamation"></i>';
+                document.getElementById('my-name').style.color = 'var(--accent-red)';
+                document.querySelector('.radar').style.color = "var(--text-muted)";
+                document.getElementById('status-text').textContent = "Sem conexão com o servidor";
+            });
+
+            // Quando UM AMIGO fica offline
+            socket.on('amigo-offline', (amigoId) => {
+                amigosStatus[amigoId] = "Offline"; 
+                const statusEl = document.getElementById(`status-user-${amigoId}`);
+                if (statusEl) {
+                    statusEl.innerHTML = `😴 Offline`;
+                    statusEl.style.color = 'var(--text-muted)'; 
+                }
+
+                // Proteção: encerra a chamada se ele cair do nada
+                if (currentPeerId === amigoId) {
+                    encerrarChamada();
+                    alert("A conexão do seu amigo caiu!");
+                }
+            });
+
+            // ------------------------------------------ //
 
             socket.on('carregar-amigos', (amigos) => {
                 localStorage.setItem('meusContatosP2P', JSON.stringify(amigos));
                 renderizarListaAmigos(amigos);
             });
 
-            // ESCUTA O STATUS DOS AMIGOS
             socket.on('status-atualizado', (data) => {
                 amigosStatus[data.id] = data.status;
                 const statusEl = document.getElementById(`status-user-${data.id}`);
-                if(statusEl) statusEl.innerHTML = `🎮 ${data.status}`;
+                if(statusEl) {
+                    statusEl.innerHTML = `🎮 ${data.status}`;
+                    statusEl.style.color = 'var(--text-normal)';
+                }
             });
 
             socket.on('pedido-amizade', (dados) => {
@@ -534,7 +563,6 @@
                 currentPeerId = data.de;
                 createPeer(data.de);
                 
-                // Configura o DataChannel se o outro lado criou
                 peerConnection.ondatachannel = (event) => {
                     dataChannel = event.channel;
                     setupDataChannel(dataChannel);
@@ -567,11 +595,27 @@
 
         async function iniciarChamada(friendId) {
             if(usuariosBloqueados.includes(friendId)) { alert("Você bloqueou este usuário."); return; }
+            
+            // Verifica se o amigo está offline antes de ligar
+            if(amigosStatus[friendId] === "Offline") {
+                alert("Este usuário está offline no momento.");
+                return;
+            }
+
             try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                const modo = document.getElementById('capture-mode').value;
+                
+                if (modo === 'camera') {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                } else {
+                    localStream = await navigator.mediaDevices.getDisplayMedia({ 
+                        video: { displaySurface: modo }, 
+                        audio: true 
+                    });
+                }
+
                 createPeer(friendId);
                 
-                // QUEM LIGA CRIA O CANAL DE DADOS (CHAT)
                 dataChannel = peerConnection.createDataChannel('p2p-chat');
                 setupDataChannel(dataChannel);
 
@@ -580,10 +624,14 @@
                 await peerConnection.setLocalDescription(offer);
                 socket.emit('chamar-amigo', { offer, para: friendId, deId: myId });
                 
-                document.querySelector('.radar').style.color = "var(--green)"; statusText.textContent = "Transmitindo...";
+                document.querySelector('.radar').style.color = "var(--green)"; 
+                statusText.textContent = "Transmitindo...";
                 videoControls.style.display = 'flex';
                 localStream.getVideoTracks()[0].onended = encerrarChamada;
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error("Erro ao iniciar mídia:", err); 
+                alert("Permissão de tela/câmera negada ou cancelada.");
+            }
         }
 
         function addFriend() {
