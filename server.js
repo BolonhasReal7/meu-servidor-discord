@@ -2,7 +2,7 @@ const io = require('socket.io')(3000, { cors: { origin: '*' } });
 const mongoose = require('mongoose');
 
 // ⚠️ COLOQUE SUA URL DO MONGODB AQUI DENTRO (Use uma string segura!)
-const MONGO_URL = 'mongodb+srv://SEU_USUARIO:SUA_SENHA@seu-cluster.mongodb.net/?retryWrites=true&w=majority';
+const MONGO_URL = 'mongodb+srv://meneguellijuniorrodrigo_db_user:uH3khHbhXwVDnuQQ@cluster0.zrkopl8.mongodb.net/?appName=Cluster0';
 
 mongoose.connect(MONGO_URL)
     .then(() => console.log('✅ Conectado ao MongoDB!'))
