@@ -1,114 +1,130 @@
-const io = require('socket.io')(3000, { cors: { origin: '*' } });
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 
-// ⚠️ COLOQUE SUA URL DO MONGODB AQUI DENTRO (Use uma string segura!)
+const app = express();
+const server = http.createServer(app);
+
+// Configuração do Socket para aceitar conexões do seu aplicativo
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
+// A sua URL real do MongoDB
 const MONGO_URL = 'mongodb+srv://meneguellijuniorrodrigo_db_user:uH3khHbhXwVDnuQQ@cluster0.zrkopl8.mongodb.net/?appName=Cluster0';
 
 mongoose.connect(MONGO_URL)
-    .then(() => console.log('✅ Conectado ao MongoDB!'))
-    .catch(err => console.error('❌ Erro no MongoDB:', err));
+  .then(() => console.log('✅ Conectado ao MongoDB!'))
+  .catch((err) => console.error('❌ Erro no MongoDB:', err));
 
-// Estrutura do Banco de Dados
-const UserSchema = new mongoose.Schema({
+// Criando a "Tabela" no Banco de Dados para salvar os usuários e amigos
+const userSchema = new mongoose.Schema({
     discordId: String,
     username: String,
     avatar: String,
-    friends: [String] // Array com os IDs do Discord dos amigos
+    friends: [String] // Lista de IDs dos amigos
 });
-const User = mongoose.model('User', UserSchema);
+const User = mongoose.model('User', userSchema);
 
-const usuarios = {}; 
+// Dicionário para saber qual socket.id pertence a qual Discord ID
+let usuariosConectados = {};
 
-io.on('connection', socket => {
-    // Registra o usuário e busca os amigos
+io.on('connection', (socket) => {
+    console.log('🔌 Novo dispositivo conectado:', socket.id);
+
+    // 1. Quando o usuário faz login no seu app
     socket.on('registrar', async (userData) => {
-        usuarios[userData.id] = socket.id;
-        console.log(`Usuário conectado: ${userData.username}`);
-
-        try {
-            // Salva ou atualiza o usuário no Banco
-            let dbUser = await User.findOne({ discordId: userData.id });
-            if (!dbUser) {
-                dbUser = new User({ discordId: userData.id, username: userData.username, avatar: userData.avatar, friends: [] });
-                await dbUser.save();
-            }
-
-            // Busca a lista de amigos no banco e envia para o frontend
-            const amigos = await User.find({ discordId: { $in: dbUser.friends } });
-            socket.emit('carregar-amigos', amigos);
-        } catch (err) {
-            console.error("Erro ao registrar:", err);
+        usuariosConectados[userData.id] = socket.id;
+        
+        // Verifica se o usuário já existe no banco, se não, cria
+        let user = await User.findOne({ discordId: userData.id });
+        if (!user) {
+            user = new User({ discordId: userData.id, username: userData.username, avatar: userData.avatar });
+            await user.save();
         }
+
+        // Busca os amigos desse usuário no banco e envia para o HTML
+        const amigos = await User.find({ discordId: { $in: user.friends } });
+        socket.emit('carregar-amigos', amigos);
     });
 
-    // 1. Envia o pedido de amizade para a tela do amigo (NÃO adiciona direto mais)
+    // 2. Quando você clica no botão "+" para adicionar alguém
     socket.on('adicionar-amigo', async (data) => {
-        try {
-            const eu = await User.findOne({ discordId: data.meuId });
-            const amigo = await User.findOne({ discordId: data.amigoId });
-
-            // Verifica se os dois existem e se já não são amigos
-            if (eu && amigo && !eu.friends.includes(data.amigoId)) {
-                const socketDoAmigo = usuarios[data.amigoId];
-                if (socketDoAmigo) {
-                    // Se o amigo estiver online, envia o pop-up para ele
-                    io.to(socketDoAmigo).emit('pedido-amizade', { 
-                        deId: data.meuId, 
-                        nome: eu.username, 
-                        avatar: eu.avatar 
-                    });
-                }
+        const { meuId, amigoId } = data;
+        
+        // Pega as informações de quem enviou o convite
+        const eu = await User.findOne({ discordId: meuId });
+        
+        if(eu) {
+            // Se o amigo estiver online, envia o pop-up para ele!
+            const socketDoAmigo = usuariosConectados[amigoId];
+            if(socketDoAmigo) {
+                io.to(socketDoAmigo).emit('pedido-amizade', {
+                    deId: meuId,
+                    nome: eu.username,
+                    avatar: eu.avatar
+                });
             }
-        } catch (err) { 
-            console.error("Erro ao enviar pedido:", err); 
         }
     });
 
-    // 2. Quando o amigo clica no botão "Aceitar" no Pop-up
+    // 3. Quando o amigo clica em "Aceitar" no pop-up
     socket.on('aceitar-amizade', async (data) => {
-        try {
-            const eu = await User.findOne({ discordId: data.meuId }); // quem aceitou
-            const amigo = await User.findOne({ discordId: data.deId }); // quem enviou
+        const { meuId, deId } = data;
+        
+        // Salva a amizade para os dois lados no MongoDB
+        await User.updateOne({ discordId: meuId }, { $addToSet: { friends: deId } });
+        await User.updateOne({ discordId: deId }, { $addToSet: { friends: meuId } });
 
-            if (eu && amigo && !eu.friends.includes(data.deId)) {
-                eu.friends.push(data.deId);
-                amigo.friends.push(data.meuId);
-                await eu.save();
-                await amigo.save();
-                
-                // Atualiza a tela de quem aceitou
-                const meusAmigos = await User.find({ discordId: { $in: eu.friends } });
-                socket.emit('carregar-amigos', meusAmigos);
+        // Atualiza a lista de amigos na tela de quem aceitou
+        const eu = await User.findOne({ discordId: meuId });
+        const meusAmigos = await User.find({ discordId: { $in: eu.friends } });
+        socket.emit('carregar-amigos', meusAmigos);
 
-                // Atualiza a tela de quem enviou (se ele ainda estiver online)
-                const socketDoAmigo = usuarios[data.deId];
-                if (socketDoAmigo) {
-                    const amigosDele = await User.find({ discordId: { $in: amigo.friends } });
-                    io.to(socketDoAmigo).emit('carregar-amigos', amigosDele);
-                }
-            }
-        } catch (err) { 
-            console.error("Erro ao aceitar amizade:", err); 
+        // Se quem enviou o convite ainda estiver online, atualiza a tela dele também
+        const socketDeQuemEnviou = usuariosConectados[deId];
+        if(socketDeQuemEnviou) {
+            const amigo = await User.findOne({ discordId: deId });
+            const amigosDele = await User.find({ discordId: { $in: amigo.friends } });
+            io.to(socketDeQuemEnviou).emit('carregar-amigos', amigosDele);
         }
     });
 
-    // Encaminha a chamada de vídeo para o amigo
-    socket.on('chamar-amigo', data => {
-        const socketAmigo = usuarios[data.para];
-        if (socketAmigo) {
-            io.to(socketAmigo).emit('chamada-recebida', { offer: data.offer, de: socket.id, deId: data.deId });
+    // ==========================================
+    // SISTEMA DE LIGAÇÃO DE VÍDEO (WebRTC) P2P
+    // ==========================================
+    
+    socket.on('chamar-amigo', (data) => {
+        const socketDoAmigo = usuariosConectados[data.para];
+        if(socketDoAmigo) {
+            // Repassa a chamada. Manda o socket.id de quem ligou para ele saber pra onde responder
+            io.to(socketDoAmigo).emit('chamada-recebida', { offer: data.offer, de: socket.id });
         }
     });
 
-    // Responde a chamada
-    socket.on('responder-chamada', data => {
+    socket.on('responder-chamada', (data) => {
         io.to(data.para).emit('resposta-recebida', data.answer);
     });
 
-    // Sincroniza a conexão (ICE Candidates)
-    socket.on('ice-candidate', data => {
+    socket.on('ice-candidate', (data) => {
         io.to(data.para).emit('ice-candidate', data.candidate);
+    });
+
+    // ==========================================
+
+    socket.on('disconnect', () => {
+        // Remove da lista de conectados quando o usuário fecha o app
+        for (let id in usuariosConectados) {
+            if (usuariosConectados[id] === socket.id) {
+                delete usuariosConectados[id];
+                break;
+            }
+        }
     });
 });
 
-console.log("🔥 Servidor Kaneki rodando na porta 3000...");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🔥 Servidor rodando perfeitamente na porta ${PORT}...`);
+});
