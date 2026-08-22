@@ -47,6 +47,13 @@ io.on('connection', (socket) => {
     socket.emit('carregar-amigos', listaAmigos);
   });
 
+  // --- NOVO: SINCRONIZAÇÃO DE STATUS EM TEMPO REAL ---
+  socket.on('atualizar-status', (data) => {
+    // data recebe o formato { id: "12345...", status: "Jogando..." }
+    // O broadcast emite para todos os outros clientes, menos quem enviou
+    socket.broadcast.emit('status-atualizado', data);
+  });
+
   socket.on('adicionar-amigo', (data) => {
     const { meuId, amigoId } = data;
     const amigoSocket = users[amigoId];

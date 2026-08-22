@@ -2,16 +2,28 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Transmissão P2P - Kaneki Edition</title>
+    <title>Transmissão P2P - Kaneki Pro Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Paleta de Cores Red/Dark Ghoul */
+        /* Paleta de Cores & Temas Dinâmicos */
         :root {
             --bg-primary: #121212; --bg-secondary: #1a1a1a; --bg-tertiary: #242424;
             --accent-red: #da373c; --accent-red-hover: #b52a2e;
             --text-normal: #e0e0e0; --text-muted: #888888;
             --green: #23a559; --card-border: rgba(218, 55, 60, 0.3);
+        }
+
+        [data-theme='cyberpunk'] {
+            --accent-red: #00f3ff; --accent-red-hover: #00b8c4;
+            --bg-primary: #0a0a0a; --bg-secondary: #121212; --bg-tertiary: #1a1a1a;
+            --card-border: rgba(0, 243, 255, 0.3);
+        }
+
+        [data-theme='midnight'] {
+            --accent-red: #5865f2; --accent-red-hover: #4752c4;
+            --bg-primary: #151921; --bg-secondary: #1e2531; --bg-tertiary: #283142;
+            --card-border: rgba(88, 101, 242, 0.3);
         }
 
         * { box-sizing: border-box; }
@@ -35,23 +47,23 @@
         .sidebar-content { padding: 25px 20px; display: flex; flex-direction: column; gap: 20px; flex: 1; overflow-y: auto; }
         .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; }
         
-        #main-container { flex: 1; display: flex; flex-direction: column; padding: 25px; }
+        #main-container { flex: 1; display: flex; flex-direction: column; padding: 25px; position: relative; overflow: hidden; }
         
         #stream-hub { 
             flex: 1; background: #0a0a0a; border-radius: 16px; display: flex; 
             align-items: center; justify-content: center; border: 1px solid var(--bg-tertiary); 
-            position: relative; box-shadow: inset 0px 0px 30px rgba(0,0,0,0.8);
+            position: relative; box-shadow: inset 0px 0px 30px rgba(0,0,0,0.8); overflow: hidden;
         }
         
         video { width: 100%; height: 100%; object-fit: contain; display: none; border-radius: 14px; background: black; }
 
         .input-group { display: flex; gap: 8px; }
-        input { 
+        input[type="text"], select { 
             background: var(--bg-tertiary); color: white; width: 100%; 
             padding: 10px; border-radius: 8px; border: 1px solid transparent;
             font-size: 13px; outline: none; transition: all 0.3s ease; 
         }
-        input:focus { border: 1px solid var(--accent-red); background: var(--bg-primary); }
+        input:focus, select:focus { border: 1px solid var(--accent-red); background: var(--bg-primary); }
         
         button.btn-primary { 
             background: var(--accent-red); color: white; font-weight: bold; cursor: pointer; 
@@ -65,10 +77,12 @@
 
         .friend-card { display: flex; align-items: center; justify-content: space-between; background: var(--bg-tertiary); padding: 10px; border-radius: 8px; border: 1px solid transparent; transition: 0.2s; margin-bottom: 8px; }
         .friend-card:hover { border-color: var(--accent-red); }
-        .friend-info { display: flex; align-items: center; gap: 10px; }
+        .friend-info { display: flex; flex-direction: column; gap: 2px; }
+        .friend-header { display: flex; align-items: center; gap: 10px; }
         .friend-avatar { width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; }
+        .friend-status-text { font-size: 11px; color: var(--text-muted); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; margin-left: 42px; }
         .btn-call-small { background: var(--green); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; font-size: 12px; }
-        .btn-call-small:hover { background: #1e8749; }
+        .btn-call-small:hover { opacity: 0.8; }
 
         .dev-wrapper { margin-top: auto; }
         .dev-card { background: var(--bg-tertiary); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid var(--card-border); transition: all 0.3s ease; }
@@ -88,38 +102,67 @@
 
         #status-text { color: var(--text-muted); font-size: 18px; margin: 0; font-weight: bold; }
 
-        #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); align-items: center; justify-content: center; }
-        #video-controls button { width: auto; background: transparent; font-size: 15px; padding: 8px 16px; border: none; color: white; cursor: pointer; transition: 0.2s;}
+        #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); align-items: center; justify-content: center; gap: 8px; z-index: 50; }
+        #video-controls button { width: auto; background: transparent; font-size: 14px; padding: 8px 14px; border: none; color: white; cursor: pointer; transition: 0.2s;}
         #video-controls button:hover { background: rgba(255,255,255,0.1); border-radius: 8px; }
         #video-controls button.active { color: var(--accent-red); }
+
+        /* --- CHAT FANTASMA UI --- */
+        #chat-panel { position: absolute; right: 0; top: 0; width: 320px; height: 100%; background: rgba(18, 18, 18, 0.95); backdrop-filter: blur(10px); border-left: 1px solid var(--card-border); transform: translateX(100%); transition: transform 0.3s ease; display: flex; flex-direction: column; z-index: 100; box-shadow: -5px 0 25px rgba(0,0,0,0.8); }
+        #chat-panel.open { transform: translateX(0); }
+        .chat-header { padding: 15px 20px; background: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .chat-header h3 { margin: 0; font-size: 14px; color: var(--accent-red); font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .chat-header button { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+        .chat-header button:hover { color: white; }
+        #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg-bubble { max-width: 85%; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; word-wrap: break-word; }
+        .msg-local { background: var(--accent-red); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg-remote { background: var(--bg-tertiary); color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .msg-system { background: transparent; color: var(--text-muted); align-self: center; font-size: 11px; font-style: italic; }
+        .chat-input-area { padding: 15px; background: var(--bg-tertiary); display: flex; gap: 8px; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); }
+        .chat-btn { background: var(--bg-primary); border: none; color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .chat-btn:hover { color: var(--accent-red); }
+        .file-link { color: #00f3ff; text-decoration: underline; cursor: pointer; display: flex; align-items: center; gap: 5px; margin-top: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <!-- Pop-up de Termos de Uso (Moderação) -->
+    <!-- Pop-up de Termos de Uso e Pop-up de Amizade (Omitidos aqui por brevidade visual, mas mantenha-os intactos) -->
     <div id="terms-popup" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
         <div style="background: var(--bg-tertiary); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red); width: 400px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
             <h2 style="color: var(--accent-red); margin-top: 0;">⚠️ Regras de Segurança</h2>
             <p style="font-size: 14px; color: var(--text-normal); text-align: left; line-height: 1.5;">
-                Ao utilizar este aplicativo de chamadas, você concorda que:<br><br>
-                <strong>1.</strong> Não utilizará a rede para exibir conteúdo ilegal, assédio ou qualquer infração ao ECA.<br>
-                <strong>2.</strong> Denúncias enviarão seu ID para o sistema e resultarão em banimento e bloqueio imediato.<br>
+                Ao utilizar este aplicativo, você concorda que não utilizará a rede para exibir conteúdo ilegal. Denúncias enviarão seu ID para o sistema e resultarão em banimento.
             </p>
-            <button id="btn-accept-terms" style="background: var(--accent-red); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px;">Eu Aceito e Compreendo</button>
+            <button id="btn-accept-terms" style="background: var(--accent-red); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px;">Eu Aceito</button>
         </div>
     </div>
 
-    <div id="friend-request-popup" style="display: none; position: fixed; top: 30px; right: 30px; background: var(--bg-tertiary); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--accent-red); box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; width: 280px; animation: slideIn 0.3s ease;">
-        <div style="font-size: 12px; font-weight: 900; margin-bottom: 12px; color: var(--accent-red); text-transform: uppercase;">NOVO PEDIDO DE AMIZADE</div>
+    <div id="friend-request-popup" style="display: none; position: fixed; top: 30px; right: 30px; background: var(--bg-tertiary); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--accent-red); box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; width: 280px;">
+        <div style="font-size: 12px; font-weight: 900; margin-bottom: 12px; color: var(--accent-red);">NOVO PEDIDO DE AMIZADE</div>
         <div id="request-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;"></div>
         <div style="display: flex; gap: 10px;">
-            <button id="btn-accept" style="flex: 1; background: var(--green); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">Aceitar</button>
-            <button id="btn-reject" style="flex: 1; background: var(--bg-primary); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px;">Recusar</button>
+            <button id="btn-accept" style="flex: 1; background: var(--green); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer;">Aceitar</button>
+            <button id="btn-reject" style="flex: 1; background: var(--bg-primary); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer;">Recusar</button>
         </div>
     </div>
 
     <div id="sidebar">
         <div class="sidebar-content">
+            <div>
+                <h3 class="section-title">Aparência do App</h3>
+                <select id="theme-selector" onchange="mudarTema(this.value)">
+                    <option value="default">Kaneki Red (Padrão)</option>
+                    <option value="cyberpunk">Cyberpunk Neon</option>
+                    <option value="midnight">Midnight Blue</option>
+                </select>
+            </div>
+
+            <div>
+                <h3 class="section-title">Status Personalizado</h3>
+                <input type="text" id="status-custom" placeholder="Ex: Jogando, Estudando..." oninput="salvarStatusCustom()">
+            </div>
+
             <div>
                 <h3 class="section-title">Adicionar Contato</h3>
                 <div class="input-group">
@@ -135,6 +178,12 @@
                 </div>
             </div>
 
+            <div>
+                <h3 class="section-title">Usuários Bloqueados</h3>
+                <div id="blocked-list"></div>
+            </div>
+            
+            <!-- Desenvolvedor -->
             <div class="dev-wrapper">
                 <h3 class="section-title" style="margin-bottom: 12px;">Desenvolvedor</h3>
                 <div class="dev-card">
@@ -168,109 +217,246 @@
             <video id="remote-video" autoplay playsinline></video>
             
             <div id="video-controls">
-                <button id="toggle-audio-btn" title="Controle de Áudio">
-                    <i class="fa-solid fa-volume-xmark"></i> Mutado
+                <button id="toggle-audio-btn" title="Controle de Áudio"><i class="fa-solid fa-volume-xmark"></i> Mutado</button>
+                <button id="ptt-btn" style="background: rgba(255,255,255,0.1); border-radius: 6px;" title="Segure ESPAÇO para falar"><i class="fa-solid fa-microphone-lines"></i> PTT</button>
+                <button id="pip-btn" onclick="togglePiP()" title="Tela Flutuante"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> PiP</button>
+                <button onclick="playSound()" title="Efeito Sonoro"><i class="fa-solid fa-music"></i> FX</button>
+                
+                <!-- NOVO BOTÃO: Chat Fantasma -->
+                <button id="chat-toggle-btn" onclick="toggleChat()" style="color: #00f3ff;" title="Chat Criptografado">
+                    <i class="fa-solid fa-message"></i> Chat
                 </button>
                 
-                <button id="stop-call-btn" title="Encerrar Chamada" style="color: var(--accent-red); margin-left: 10px;">
-                    <i class="fa-solid fa-phone-slash"></i> Encerrar
-                </button>
-
-                <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
-
-                <button id="report-btn" title="Denunciar e Bloquear Usuário" style="color: #ff9800;">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Reportar
-                </button>
+                <button id="stop-call-btn" title="Encerrar Chamada" style="color: var(--accent-red); margin-left: 5px;"><i class="fa-solid fa-phone-slash"></i></button>
+                <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 5px;"></div>
+                <button id="report-btn" title="Denunciar e Bloquear" style="color: #ff9800;"><i class="fa-solid fa-triangle-exclamation"></i></button>
             </div>
+
+            <!-- CHAT FANTASMA LATERAL -->
+            <div id="chat-panel">
+                <div class="chat-header">
+                    <h3><i class="fa-solid fa-user-ninja"></i> Chat Privado P2P</h3>
+                    <button onclick="toggleChat()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="chat-messages">
+                    <div class="msg-system">Chat criptografado via WebRTC. Mensagens não são salvas.</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="file" id="file-input" style="display: none;" onchange="sendFile(this.files[0])">
+                    <button class="chat-btn" onclick="document.getElementById('file-input').click()" title="Enviar Arquivo"><i class="fa-solid fa-paperclip"></i></button>
+                    <input type="text" id="chat-input" placeholder="Mensagem..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                    <button class="chat-btn" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const { ipcRenderer } = require('electron');
-        let socket, peerConnection, myId;
+        let socket, peerConnection, myId, dataChannel;
         let localStream = null; 
         let currentPeerId = null;
         
         const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
         
-        // Elementos da Interface
         const videoEl = document.getElementById('remote-video');
         const emptyState = document.getElementById('empty-state');
         const statusText = document.getElementById('status-text');
         const videoControls = document.getElementById('video-controls');
-        const audioBtn = document.getElementById('toggle-audio-btn');
-        const stopCallBtn = document.getElementById('stop-call-btn');
-        const reportBtn = document.getElementById('report-btn');
-        const termsPopup = document.getElementById('terms-popup');
-
-        // --- SISTEMA DE TERMOS E DENÚNCIA ---
-        if (!localStorage.getItem('termosAceitos')) {
-            document.getElementById('btn-accept-terms').onclick = () => {
-                localStorage.setItem('termosAceitos', 'true');
-                termsPopup.style.display = 'none';
-            };
-        } else {
-            termsPopup.style.display = 'none';
+        
+        // --- 1. SISTEMA DE TEMAS E STATUS REAL-TIME ---
+        function mudarTema(tema) {
+            if(tema === 'default') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', tema);
+            localStorage.setItem('appTheme', tema);
         }
+
+        const savedTheme = localStorage.getItem('appTheme');
+        if(savedTheme) { document.getElementById('theme-selector').value = savedTheme; mudarTema(savedTheme); }
+
+        let debounceTimer;
+        function salvarStatusCustom() {
+            const statusVal = document.getElementById('status-custom').value;
+            localStorage.setItem('userCustomStatus', statusVal);
+            
+            // Envia para o servidor retransmitir aos amigos
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                if(socket && myId) {
+                    socket.emit('atualizar-status', { id: myId, status: statusVal });
+                }
+            }, 1000);
+        }
+        
+        const savedStatus = localStorage.getItem('userCustomStatus');
+        if(savedStatus) document.getElementById('status-custom').value = savedStatus;
+
+        // --- 2. SISTEMA DE CHAT FANTASMA & ARQUIVOS (P2P DataChannel) ---
+        function toggleChat() {
+            document.getElementById('chat-panel').classList.toggle('open');
+        }
+
+        function appendMessage(texto, tipo, isFile = false) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `msg-bubble ${tipo === 'local' ? 'msg-local' : 'msg-remote'}`;
+            
+            if(isFile) {
+                div.innerHTML = `<i class="fa-solid fa-file"></i> Arquivo Recebido:<br>${texto}`;
+            } else {
+                div.textContent = texto;
+            }
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function setupDataChannel(channel) {
+            channel.onopen = () => console.log("Chat P2P Aberto!");
+            channel.onclose = () => {
+                document.getElementById('chat-panel').classList.remove('open');
+                document.getElementById('chat-messages').innerHTML = '<div class="msg-system">Conexão encerrada. Histórico apagado.</div>';
+            };
+            
+            let receiveBuffer = [];
+            let receivingFileMeta = null;
+
+            channel.onmessage = (event) => {
+                if (typeof event.data === 'string') {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'text') {
+                        appendMessage(msg.content, 'remote');
+                    } else if (msg.type === 'file-start') {
+                        receivingFileMeta = msg;
+                        receiveBuffer = [];
+                    } else if (msg.type === 'file-end') {
+                        const blob = new Blob(receiveBuffer, { type: receivingFileMeta.fileType });
+                        const url = URL.createObjectURL(blob);
+                        const linkHTML = `<a href="${url}" download="${receivingFileMeta.name}" class="file-link">Baixar ${receivingFileMeta.name}</a>`;
+                        appendMessage(linkHTML, 'remote', true);
+                        receivingFileMeta = null;
+                    }
+                } else {
+                    // Recebendo pedaços (chunks) do arquivo em ArrayBuffer
+                    receiveBuffer.push(event.data);
+                }
+            };
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const texto = input.value.trim();
+            if(texto && dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'text', content: texto }));
+                appendMessage(texto, 'local');
+                input.value = '';
+            }
+        }
+
+        function sendFile(file) {
+            if(!file || !dataChannel || dataChannel.readyState !== 'open') return;
+            
+            const chunkSize = 16384; // 16KB por pacote (limite seguro do WebRTC)
+            let offset = 0;
+            
+            dataChannel.send(JSON.stringify({ type: 'file-start', name: file.name, size: file.size, fileType: file.type }));
+            appendMessage(`Enviando arquivo: ${file.name}...`, 'local');
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                dataChannel.send(e.target.result);
+                offset += e.target.result.byteLength;
+                if (offset < file.size) {
+                    readSlice(offset);
+                } else {
+                    dataChannel.send(JSON.stringify({ type: 'file-end' }));
+                }
+            };
+            
+            const readSlice = o => {
+                const slice = file.slice(offset, o + chunkSize);
+                reader.readAsArrayBuffer(slice);
+            };
+            
+            readSlice(0);
+        }
+
+        // --- CÓDIGO ANTERIOR MANTIDO (Termos, Bloqueios, PiP, Soundboard, etc) ---
+        if (!localStorage.getItem('termosAceitos')) {
+            document.getElementById('btn-accept-terms').onclick = () => { localStorage.setItem('termosAceitos', 'true'); document.getElementById('terms-popup').style.display = 'none'; };
+        } else { document.getElementById('terms-popup').style.display = 'none'; }
 
         let usuariosBloqueados = JSON.parse(localStorage.getItem('bloqueadosP2P')) || [];
 
-        reportBtn.addEventListener('click', () => {
-            if (currentPeerId) {
-                if(!usuariosBloqueados.includes(currentPeerId)){
-                    usuariosBloqueados.push(currentPeerId);
-                    localStorage.setItem('bloqueadosP2P', JSON.stringify(usuariosBloqueados));
-                }
+        function atualizarListaBloqueados() {
+            const blockedListContainer = document.getElementById('blocked-list');
+            if (!blockedListContainer) return;
+            blockedListContainer.innerHTML = '';
+            if (usuariosBloqueados.length === 0) { blockedListContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">Nenhum.</span>'; return; }
+
+            usuariosBloqueados.forEach(idBloqueado => {
+                const div = document.createElement('div');
+                div.className = 'friend-card';
+                div.innerHTML = `
+                    <div class="friend-info"><span style="font-size: 12px; color: var(--text-normal);">ID: ${idBloqueado.substring(0, 10)}...</span></div>
+                    <button class="btn-call-small" style="background: var(--accent-red);" onclick="desbloquearUsuario('${idBloqueado}')"><i class="fa-solid fa-unlock"></i></button>
+                `;
+                blockedListContainer.appendChild(div);
+            });
+        }
+
+        window.desbloquearUsuario = function(id) {
+            usuariosBloqueados = usuariosBloqueados.filter(b => b !== id);
+            localStorage.setItem('bloqueadosP2P', JSON.stringify(usuariosBloqueados));
+            atualizarListaBloqueados();
+        };
+        atualizarListaBloqueados();
+
+        document.getElementById('report-btn').addEventListener('click', () => {
+            if (currentPeerId && !usuariosBloqueados.includes(currentPeerId)){
+                usuariosBloqueados.push(currentPeerId);
+                localStorage.setItem('bloqueadosP2P', JSON.stringify(usuariosBloqueados));
+                atualizarListaBloqueados();
                 if(socket) socket.emit('reportar-usuario', { infrator: currentPeerId, denunciante: myId });
-                alert("Usuário denunciado e bloqueado! Você não receberá mais chamadas dele.");
+                alert("Bloqueado!");
                 encerrarChamada();
             }
         });
 
-        // --- CONTROLES DE CHAMADA ---
-        audioBtn.addEventListener('click', () => {
-            if (videoEl.muted) {
-                videoEl.muted = false;
-                audioBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Áudio On';
-                audioBtn.classList.remove('active');
-                audioBtn.style.color = "var(--green)";
-            } else {
-                videoEl.muted = true;
-                audioBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Mutado';
-                audioBtn.classList.add('active');
-                audioBtn.style.color = "var(--accent-red)";
-            }
-        });
+        // Controles de Áudio e PTT
+        document.addEventListener('keydown', (e) => { if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); setMicState(true); } });
+        document.addEventListener('keyup', (e) => { if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { setMicState(false); } });
 
-        function encerrarChamada() {
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
+        function setMicState(habilitado) {
             if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
-            videoEl.style.display = 'none';
-            videoEl.srcObject = null;
-            videoControls.style.display = 'none';
-            emptyState.style.display = 'flex';
-            
-            const radar = document.querySelector('.radar');
-            if(radar) {
-                radar.className = "fa-solid fa-radar radar";
-                radar.style.color = "var(--accent-red)";
-            }
-            statusText.textContent = "Aguardando Sinal...";
-
-            if (currentPeerId && socket) {
-                socket.emit('encerrar-chamada', { para: currentPeerId });
-                currentPeerId = null;
+                localStream.getAudioTracks().forEach(t => t.enabled = habilitado);
+                const pttBtn = document.getElementById('ptt-btn');
+                pttBtn.style.background = habilitado ? 'var(--green)' : 'rgba(255,255,255,0.1)';
             }
         }
-        stopCallBtn.addEventListener('click', encerrarChamada);
+
+        document.getElementById('toggle-audio-btn').addEventListener('click', function() {
+            videoEl.muted = !videoEl.muted;
+            this.innerHTML = videoEl.muted ? '<i class="fa-solid fa-volume-xmark"></i> Mutado' : '<i class="fa-solid fa-volume-high"></i> On';
+            this.style.color = videoEl.muted ? "var(--accent-red)" : "var(--green)";
+        });
+
+        async function togglePiP() { try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await videoEl.requestPictureInPicture(); } catch(e){} }
+        function playSound() { new Audio('https://actions.google.com/sounds/v1/ambiences/beep_short.ogg').play().catch(e=>{}); }
+
+        function encerrarChamada() {
+            if (peerConnection) { peerConnection.close(); peerConnection = null; }
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+            videoEl.style.display = 'none'; videoEl.srcObject = null;
+            videoControls.style.display = 'none'; emptyState.style.display = 'flex';
+            document.querySelector('.radar').style.color = "var(--accent-red)";
+            statusText.textContent = "Aguardando Sinal...";
+            document.getElementById('chat-panel').classList.remove('open');
+            if (currentPeerId && socket) { socket.emit('encerrar-chamada', { para: currentPeerId }); currentPeerId = null; }
+        }
+        document.getElementById('stop-call-btn').addEventListener('click', encerrarChamada);
 
         // --- SISTEMA DE LOGIN ---
         function loadProfile(user) {
@@ -284,167 +470,125 @@
 
         const savedUser = localStorage.getItem('discordUser');
         if (savedUser) loadProfile(JSON.parse(savedUser));
+        document.getElementById('login-btn').addEventListener('click', () => ipcRenderer.send('login-discord', '1539796777908043907'));
+        ipcRenderer.on('login-success', (e, user) => { localStorage.setItem('discordUser', JSON.stringify(user)); loadProfile(user); });
 
-        document.getElementById('login-btn').addEventListener('click', () => {
-            ipcRenderer.send('login-discord', '1539796777908043907');
-        });
+        // --- CONEXÃO E P2P ---
+        let amigosStatus = {}; // Guarda o status dinâmico
 
-        ipcRenderer.on('login-success', (e, user) => {
-            localStorage.setItem('discordUser', JSON.stringify(user));
-            loadProfile(user);
-        });
+        function renderizarListaAmigos(amigos) {
+            const listContainer = document.getElementById('friends-list');
+            listContainer.innerHTML = ''; 
+            if(amigos.length === 0) { listContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">Nenhum amigo adicionado.</span>'; return; }
 
-        // --- SISTEMA DE CONEXÃO E P2P ---
-        function connectServer(userData) {
-            socket = io('https://meu-servidor-discord-production-9962.up.railway.app', {
-                transports: ['websocket']
-            });
-            
-            socket.on('connect', () => console.log('Conectado ao Railway'));
-            
-            // Carrega os amigos salvos no PC e envia junto com os dados do usuário
-            const savedFriends = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
-            socket.emit('registrar', { user: userData, friends: savedFriends });
-
-            socket.on('carregar-amigos', (amigos) => {
-                // Salva a lista de amigos localmente sempre que atualizar
-                localStorage.setItem('meusContatosP2P', JSON.stringify(amigos));
-                
-                const listContainer = document.getElementById('friends-list');
-                listContainer.innerHTML = ''; 
-                
-                if(amigos.length === 0) {
-                    listContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">Nenhum amigo adicionado.</span>';
-                    return;
-                }
-
-                amigos.forEach(amigo => {
-                    const div = document.createElement('div');
-                    div.className = 'friend-card';
-                    div.innerHTML = `
-                        <div class="friend-info">
+            amigos.forEach(amigo => {
+                const currentStatus = amigosStatus[amigo.discordId] || "Disponível";
+                const div = document.createElement('div');
+                div.className = 'friend-card';
+                div.innerHTML = `
+                    <div class="friend-info">
+                        <div class="friend-header">
                             <div class="friend-avatar" style="background-image: url('https://cdn.discordapp.com/avatars/${amigo.discordId}/${amigo.avatar}.png')"></div>
                             <span style="font-size: 13px; font-weight: bold;">${amigo.username}</span>
                         </div>
-                        <button class="btn-call-small" onclick="iniciarChamada('${amigo.discordId}')">
-                            <i class="fa-solid fa-phone"></i>
-                        </button>
-                    `;
-                    listContainer.appendChild(div);
-                });
+                        <div class="friend-status-text" id="status-user-${amigo.discordId}">🎮 ${currentStatus}</div>
+                    </div>
+                    <button class="btn-call-small" onclick="iniciarChamada('${amigo.discordId}')"><i class="fa-solid fa-phone"></i></button>
+                `;
+                listContainer.appendChild(div);
+            });
+        }
+
+        function connectServer(userData) {
+            socket = io('https://meu-servidor-discord-production-9962.up.railway.app', { transports: ['websocket'] });
+            
+            socket.on('connect', () => {
+                const savedFriends = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
+                socket.emit('registrar', { user: userData, friends: savedFriends });
+                // Envia meu status inicial ao conectar
+                if(savedStatus) socket.emit('atualizar-status', { id: myId, status: savedStatus });
             });
 
-            socket.on('pedido-amizade', (dadosPedido) => {
+            socket.on('carregar-amigos', (amigos) => {
+                localStorage.setItem('meusContatosP2P', JSON.stringify(amigos));
+                renderizarListaAmigos(amigos);
+            });
+
+            // ESCUTA O STATUS DOS AMIGOS
+            socket.on('status-atualizado', (data) => {
+                amigosStatus[data.id] = data.status;
+                const statusEl = document.getElementById(`status-user-${data.id}`);
+                if(statusEl) statusEl.innerHTML = `🎮 ${data.status}`;
+            });
+
+            socket.on('pedido-amizade', (dados) => {
                 const popup = document.getElementById('friend-request-popup');
-                const info = document.getElementById('request-info');
-                
-                info.innerHTML = `
-                    <div style="width: 36px; height: 36px; border-radius: 50%; background-image: url('https://cdn.discordapp.com/avatars/${dadosPedido.deId}/${dadosPedido.avatar}.png'); background-size: cover; border: 2px solid var(--bg-secondary);"></div>
-                    <span style="font-size: 14px; font-weight: bold; color: white;">${dadosPedido.nome}</span>
-                `;
-                
+                document.getElementById('request-info').innerHTML = `<div style="width: 36px; height: 36px; border-radius: 50%; background-image: url('https://cdn.discordapp.com/avatars/${dados.deId}/${dados.avatar}.png'); background-size: cover;"></div><span style="font-size: 14px; font-weight: bold; color: white;">${dados.nome}</span>`;
                 popup.style.display = 'block';
-
-                document.getElementById('btn-accept').onclick = () => {
-                    socket.emit('aceitar-amizade', { meuId: myId, deId: dadosPedido.deId });
-                    popup.style.display = 'none';
-                };
-
-                document.getElementById('btn-reject').onclick = () => {
-                    popup.style.display = 'none';
-                };
+                document.getElementById('btn-accept').onclick = () => { socket.emit('aceitar-amizade', { meuId: myId, deId: dados.deId }); popup.style.display = 'none'; };
+                document.getElementById('btn-reject').onclick = () => popup.style.display = 'none';
             });
 
             socket.on('chamada-recebida', async data => {
-                // Checa se o usuário que está ligando está na lista de bloqueados
-                if(usuariosBloqueados.includes(data.de)) {
-                    console.log("Chamada bloqueada de: ", data.de);
-                    return; // Ignora a chamada
-                }
-
+                if(usuariosBloqueados.includes(data.de)) return;
                 currentPeerId = data.de;
                 createPeer(data.de);
+                
+                // Configura o DataChannel se o outro lado criou
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    setupDataChannel(dataChannel);
+                };
+
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 socket.emit('responder-chamada', { answer, para: data.de });
                 
-                document.querySelector('.radar').className = "fa-solid fa-tower-broadcast radar";
                 document.querySelector('.radar').style.color = "var(--green)";
                 statusText.textContent = "Conectado!";
             });
 
-            socket.on('resposta-recebida', async answer => {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            });
-
-            socket.on('ice-candidate', candidate => {
-                if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-            });
-
-            socket.on('chamada-encerrada', () => {
-                encerrarChamada();
-            });
+            socket.on('resposta-recebida', async answer => await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)));
+            socket.on('ice-candidate', candidate => { if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); });
+            socket.on('chamada-encerrada', encerrarChamada);
         }
 
         function createPeer(targetSocketId) {
             currentPeerId = targetSocketId;
             peerConnection = new RTCPeerConnection(config);
-            
-            peerConnection.onicecandidate = e => {
-                if (e.candidate) socket.emit('ice-candidate', { candidate: e.candidate, para: targetSocketId });
-            };
-            
+            peerConnection.onicecandidate = e => { if (e.candidate) socket.emit('ice-candidate', { candidate: e.candidate, para: targetSocketId }); };
             peerConnection.ontrack = e => {
-                emptyState.style.display = 'none';
-                videoEl.style.display = 'block';
-                videoControls.style.display = 'flex';
+                emptyState.style.display = 'none'; videoEl.style.display = 'block'; videoControls.style.display = 'flex';
                 videoEl.srcObject = e.streams[0];
             };
             return targetSocketId;
         }
 
         async function iniciarChamada(friendId) {
-            // Impede ligar para quem está bloqueado
-            if(usuariosBloqueados.includes(friendId)) {
-                alert("Você bloqueou este usuário.");
-                return;
-            }
-
+            if(usuariosBloqueados.includes(friendId)) { alert("Você bloqueou este usuário."); return; }
             try {
                 localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 createPeer(friendId);
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                
+                // QUEM LIGA CRIA O CANAL DE DADOS (CHAT)
+                dataChannel = peerConnection.createDataChannel('p2p-chat');
+                setupDataChannel(dataChannel);
 
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 socket.emit('chamar-amigo', { offer, para: friendId, deId: myId });
                 
-                document.querySelector('.radar').className = "fa-solid fa-tower-broadcast radar";
-                document.querySelector('.radar').style.color = "var(--green)";
-                statusText.textContent = "Transmitindo...";
+                document.querySelector('.radar').style.color = "var(--green)"; statusText.textContent = "Transmitindo...";
                 videoControls.style.display = 'flex';
-                
-                // Trata o botão nativo de parar do navegador
-                localStream.getVideoTracks()[0].onended = () => {
-                    encerrarChamada();
-                };
-
-            } catch (err) { console.error("Erro na chamada:", err); }
+                localStream.getVideoTracks()[0].onended = encerrarChamada;
+            } catch (err) { console.error(err); }
         }
 
         function addFriend() {
-            const friendId = document.getElementById('new-friend-id').value;
-            if (friendId && myId) {
-                if(usuariosBloqueados.includes(friendId)) {
-                    alert("Este usuário está bloqueado.");
-                    return;
-                }
-                socket.emit('adicionar-amigo', { meuId: myId, amigoId: friendId });
-                document.getElementById('new-friend-id').value = '';
-            } else {
-                alert("Conecte-se e digite um ID válido!");
-            }
+            const fId = document.getElementById('new-friend-id').value;
+            if (fId && myId && !usuariosBloqueados.includes(fId)) { socket.emit('adicionar-amigo', { meuId: myId, amigoId: fId }); document.getElementById('new-friend-id').value = ''; }
         }
     </script>
 </body>
