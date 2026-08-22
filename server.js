@@ -11,10 +11,9 @@ const io = new Server(server, {
 });
 
 // --- BANCOS DE DADOS EM MEMÓRIA ---
-// Em um app comercial usamos SQL/MongoDB, mas para altíssima velocidade usamos a memória RAM:
-const socketToDiscord = {}; // Mapeia o ID da conexão -> ID do Discord
-const discordToSocket = {}; // Mapeia o ID do Discord -> ID da conexão
-const usersData = {};       // Guarda informações visuais (nome, avatar)
+const socketToDiscord = {}; 
+const discordToSocket = {}; 
+const usersData = {};       
 
 io.on('connection', (socket) => {
     console.log(`🟢 Nova conexão recebida: ${socket.id}`);
@@ -23,7 +22,6 @@ io.on('connection', (socket) => {
     socket.on('registrar', (data) => {
         const discordId = data.user.id;
         
-        // Salva as referências cruzadas
         socketToDiscord[socket.id] = discordId;
         discordToSocket[discordId] = socket.id;
         usersData[discordId] = data.user;
@@ -31,18 +29,16 @@ io.on('connection', (socket) => {
         console.log(`👤 Registrado: ${data.user.username} (${discordId})`);
     });
 
-    // 2. STATUS PERSONALIZADO (Ex: "Jogando Valorant")
+    // 2. STATUS PERSONALIZADO
     socket.on('atualizar-status', (data) => {
-        // data = { id: discordId, status: "Jogando..." }
         io.emit('status-atualizado', data); 
     });
 
-    // 3. SISTEMA DE AMIZADES
+    // 3. SISTEMA DE ADICIONAR/REMOVER AMIGOS
     socket.on('adicionar-amigo', (data) => {
         const { meuId, amigoId } = data;
         const socketDoAmigo = discordToSocket[amigoId];
         
-        // Se o amigo estiver online, envia o popup de convite
         if (socketDoAmigo && usersData[meuId]) {
             const meuUser = usersData[meuId];
             io.to(socketDoAmigo).emit('pedido-amizade', {
@@ -53,8 +49,34 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. SINALIZAÇÃO WEBRTC (O CORAÇÃO DO P2P)
-    // O servidor não toca no vídeo, apenas entrega os "endereços de IP" (ofertas/respostas)
+    socket.on('aceitar-amizade', (data) => {
+        const socketDeQuemEnviou = discordToSocket[data.deId];
+        const socketDeQuemAceitou = discordToSocket[data.meuId];
+
+        const userDe = usersData[data.deId];
+        const userMeu = usersData[data.meuId];
+
+        if (socketDeQuemEnviou && userMeu) {
+            io.to(socketDeQuemEnviou).emit('amizade-aceita', { 
+                discordId: data.meuId, username: userMeu.global_name || userMeu.username, avatar: userMeu.avatar 
+            });
+        }
+        
+        if (socketDeQuemAceitou && userDe) {
+            io.to(socketDeQuemAceitou).emit('amizade-aceita', { 
+                discordId: data.deId, username: userDe.global_name || userDe.username, avatar: userDe.avatar 
+            });
+        }
+    });
+
+    socket.on('remover-amizade', (data) => {
+        const socketDoAmigo = discordToSocket[data.amigoId];
+        if (socketDoAmigo) {
+            io.to(socketDoAmigo).emit('amizade-removida', data.meuId);
+        }
+    });
+
+    // 4. SINALIZAÇÃO WEBRTC
     socket.on('chamar-amigo', (data) => {
         const socketDestino = discordToSocket[data.para];
         if (socketDestino) {
@@ -79,31 +101,25 @@ io.on('connection', (socket) => {
         if (socketDestino) io.to(socketDestino).emit('chamada-encerrada');
     });
 
-    // 5. DENÚNCIAS E SEGURANÇA
+    // 5. DENÚNCIAS
     socket.on('reportar-usuario', (data) => {
-        console.warn(`🚨 ALERTA: Usuário ${data.denunciante} denunciou/bloqueou o ID: ${data.infrator}`);
-        // No futuro, podemos injetar uma lógica de banimento aqui
+        console.warn(`🚨 ALERTA: Usuário ${data.denunciante} denunciou o ID: ${data.infrator}`);
     });
 
-    // 6. --- NOVO: SISTEMA DE PRESENÇA (ONLINE/OFFLINE) ---
+    // 6. SISTEMA DE PRESENÇA (ONLINE/OFFLINE)
     socket.on('disconnect', () => {
         const discordIdQueCaiu = socketToDiscord[socket.id];
         
         if (discordIdQueCaiu) {
             console.log(`🔴 Usuário Desconectado: ${discordIdQueCaiu}`);
-            
-            // O Grito do Servidor: Avisa TODOS na rede que esse ID caiu!
             socket.broadcast.emit('amigo-offline', discordIdQueCaiu);
-            
-            // Limpa as conexões velhas da memória RAM
             delete discordToSocket[discordIdQueCaiu];
             delete socketToDiscord[socket.id];
         }
     });
 });
 
-// Inicia o servidor (O Railway define a porta automaticamente)
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🚀 Servidor de Sinalização rodando na porta ${PORT}`);
+    console.log(`🚀 Servidor P2P rodando na porta ${PORT}`);
 });

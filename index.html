@@ -81,7 +81,7 @@
         .friend-header { display: flex; align-items: center; gap: 10px; }
         .friend-avatar { width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; }
         .friend-status-text { font-size: 11px; color: var(--text-muted); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; margin-left: 42px; }
-        .btn-call-small { background: var(--green); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; font-size: 12px; }
+        .btn-call-small { background: var(--green); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; font-size: 12px; transition: 0.2s;}
         .btn-call-small:hover { opacity: 0.8; }
 
         .dev-wrapper { margin-top: auto; }
@@ -98,8 +98,6 @@
         .radar { font-size: 55px; color: var(--accent-red); animation: radar-pulse 2s infinite; }
         @keyframes radar-pulse { 0% { transform: scale(0.9); opacity: 0.3; } 50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px var(--accent-red)); } 100% { transform: scale(0.9); opacity: 0.3; } }
         
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
         #status-text { color: var(--text-muted); font-size: 18px; margin: 0; font-weight: bold; }
 
         #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); align-items: center; justify-content: center; gap: 8px; z-index: 50; }
@@ -253,7 +251,6 @@
                     <button class="chat-btn" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -296,20 +293,15 @@
         const savedStatus = localStorage.getItem('userCustomStatus');
         if(savedStatus) document.getElementById('status-custom').value = savedStatus;
 
-        function toggleChat() {
-            document.getElementById('chat-panel').classList.toggle('open');
-        }
+        function toggleChat() { document.getElementById('chat-panel').classList.toggle('open'); }
 
         function appendMessage(texto, tipo, isFile = false) {
             const container = document.getElementById('chat-messages');
             const div = document.createElement('div');
             div.className = `msg-bubble ${tipo === 'local' ? 'msg-local' : 'msg-remote'}`;
             
-            if(isFile) {
-                div.innerHTML = `<i class="fa-solid fa-file"></i> Arquivo Recebido:<br>${texto}`;
-            } else {
-                div.textContent = texto;
-            }
+            if(isFile) { div.innerHTML = `<i class="fa-solid fa-file"></i> Arquivo Recebido:<br>${texto}`; } 
+            else { div.textContent = texto; }
             
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
@@ -328,21 +320,16 @@
             channel.onmessage = (event) => {
                 if (typeof event.data === 'string') {
                     const msg = JSON.parse(event.data);
-                    if (msg.type === 'text') {
-                        appendMessage(msg.content, 'remote');
-                    } else if (msg.type === 'file-start') {
-                        receivingFileMeta = msg;
-                        receiveBuffer = [];
-                    } else if (msg.type === 'file-end') {
+                    if (msg.type === 'text') { appendMessage(msg.content, 'remote'); } 
+                    else if (msg.type === 'file-start') { receivingFileMeta = msg; receiveBuffer = []; } 
+                    else if (msg.type === 'file-end') {
                         const blob = new Blob(receiveBuffer, { type: receivingFileMeta.fileType });
                         const url = URL.createObjectURL(blob);
                         const linkHTML = `<a href="${url}" download="${receivingFileMeta.name}" class="file-link">Baixar ${receivingFileMeta.name}</a>`;
                         appendMessage(linkHTML, 'remote', true);
                         receivingFileMeta = null;
                     }
-                } else {
-                    receiveBuffer.push(event.data);
-                }
+                } else { receiveBuffer.push(event.data); }
             };
         }
 
@@ -369,18 +356,14 @@
             reader.onload = e => {
                 dataChannel.send(e.target.result);
                 offset += e.target.result.byteLength;
-                if (offset < file.size) {
-                    readSlice(offset);
-                } else {
-                    dataChannel.send(JSON.stringify({ type: 'file-end' }));
-                }
+                if (offset < file.size) readSlice(offset);
+                else dataChannel.send(JSON.stringify({ type: 'file-end' }));
             };
             
             const readSlice = o => {
                 const slice = file.slice(offset, o + chunkSize);
                 reader.readAsArrayBuffer(slice);
             };
-            
             readSlice(0);
         }
 
@@ -473,6 +456,7 @@
 
         let amigosStatus = {};
 
+        // --- SISTEMA DE RENDERIZAÇÃO COM BOTÃO DE REMOVER --- //
         function renderizarListaAmigos(amigos) {
             const listContainer = document.getElementById('friends-list');
             listContainer.innerHTML = ''; 
@@ -493,11 +477,26 @@
                         </div>
                         <div class="friend-status-text" id="status-user-${amigo.discordId}" style="color: ${colorStatus};">${iconStatus} ${currentStatus}</div>
                     </div>
-                    <button class="btn-call-small" onclick="iniciarChamada('${amigo.discordId}')"><i class="fa-solid fa-phone"></i></button>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn-call-small" onclick="iniciarChamada('${amigo.discordId}')" title="Ligar"><i class="fa-solid fa-phone"></i></button>
+                        <button class="btn-call-small" style="background: transparent; color: var(--accent-red); border: 1px solid var(--accent-red);" onclick="removerAmigo('${amigo.discordId}')" title="Desfazer Amizade"><i class="fa-solid fa-user-minus"></i></button>
+                    </div>
                 `;
                 listContainer.appendChild(div);
             });
         }
+
+        window.removerAmigo = function(amigoId) {
+            if(confirm("Tem certeza que deseja remover este usuário da sua lista?")) {
+                let meusAmigos = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
+                meusAmigos = meusAmigos.filter(a => a.discordId !== amigoId);
+                
+                localStorage.setItem('meusContatosP2P', JSON.stringify(meusAmigos));
+                renderizarListaAmigos(meusAmigos);
+                
+                if(socket) socket.emit('remover-amizade', { meuId: myId, amigoId: amigoId });
+            }
+        };
 
         function connectServer(userData) {
             socket = io('https://meu-servidor-discord-production-9962.up.railway.app', { transports: ['websocket'] });
@@ -508,9 +507,24 @@
                 if(savedStatus) socket.emit('atualizar-status', { id: myId, status: savedStatus });
             });
 
-            // --- SISTEMA DE PRESENÇA ADICIONADO AQUI --- //
+            // --- PROCESSAMENTO DE NOVAS AMIZADES --- //
+            socket.on('amizade-aceita', (novoAmigo) => {
+                let meusAmigos = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
+                if (!meusAmigos.some(a => a.discordId === novoAmigo.discordId)) {
+                    meusAmigos.push(novoAmigo);
+                    localStorage.setItem('meusContatosP2P', JSON.stringify(meusAmigos));
+                    renderizarListaAmigos(meusAmigos);
+                }
+            });
 
-            // Quando VOCÊ perde conexão com o servidor
+            socket.on('amizade-removida', (quemRemoveuId) => {
+                let meusAmigos = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
+                meusAmigos = meusAmigos.filter(a => a.discordId !== quemRemoveuId);
+                localStorage.setItem('meusContatosP2P', JSON.stringify(meusAmigos));
+                renderizarListaAmigos(meusAmigos);
+            });
+
+            // --- SISTEMA DE PRESENÇA (ONLINE/OFFLINE) --- //
             socket.on('disconnect', () => {
                 document.getElementById('my-name').innerHTML = 'Desconectado <i class="fa-solid fa-triangle-exclamation"></i>';
                 document.getElementById('my-name').style.color = 'var(--accent-red)';
@@ -518,16 +532,11 @@
                 document.getElementById('status-text').textContent = "Sem conexão com o servidor";
             });
 
-            // Quando UM AMIGO fica offline
             socket.on('amigo-offline', (amigoId) => {
                 amigosStatus[amigoId] = "Offline"; 
                 const statusEl = document.getElementById(`status-user-${amigoId}`);
-                if (statusEl) {
-                    statusEl.innerHTML = `😴 Offline`;
-                    statusEl.style.color = 'var(--text-muted)'; 
-                }
+                if (statusEl) { statusEl.innerHTML = `😴 Offline`; statusEl.style.color = 'var(--text-muted)'; }
 
-                // Proteção: encerra a chamada se ele cair do nada
                 if (currentPeerId === amigoId) {
                     encerrarChamada();
                     alert("A conexão do seu amigo caiu!");
@@ -535,7 +544,6 @@
             });
 
             // ------------------------------------------ //
-
             socket.on('carregar-amigos', (amigos) => {
                 localStorage.setItem('meusContatosP2P', JSON.stringify(amigos));
                 renderizarListaAmigos(amigos);
@@ -595,24 +603,12 @@
 
         async function iniciarChamada(friendId) {
             if(usuariosBloqueados.includes(friendId)) { alert("Você bloqueou este usuário."); return; }
-            
-            // Verifica se o amigo está offline antes de ligar
-            if(amigosStatus[friendId] === "Offline") {
-                alert("Este usuário está offline no momento.");
-                return;
-            }
+            if(amigosStatus[friendId] === "Offline") { alert("Este usuário está offline no momento."); return; }
 
             try {
                 const modo = document.getElementById('capture-mode').value;
-                
-                if (modo === 'camera') {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                } else {
-                    localStream = await navigator.mediaDevices.getDisplayMedia({ 
-                        video: { displaySurface: modo }, 
-                        audio: true 
-                    });
-                }
+                if (modo === 'camera') { localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); } 
+                else { localStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: modo }, audio: true }); }
 
                 createPeer(friendId);
                 
