@@ -88,13 +88,26 @@
 
         #status-text { color: var(--text-muted); font-size: 18px; margin: 0; font-weight: bold; }
 
-        #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
+        #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); align-items: center; justify-content: center; }
         #video-controls button { width: auto; background: transparent; font-size: 15px; padding: 8px 16px; border: none; color: white; cursor: pointer; transition: 0.2s;}
         #video-controls button:hover { background: rgba(255,255,255,0.1); border-radius: 8px; }
         #video-controls button.active { color: var(--accent-red); }
     </style>
 </head>
 <body>
+
+    <!-- Pop-up de Termos de Uso (Moderação) -->
+    <div id="terms-popup" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-tertiary); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red); width: 400px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+            <h2 style="color: var(--accent-red); margin-top: 0;">⚠️ Regras de Segurança</h2>
+            <p style="font-size: 14px; color: var(--text-normal); text-align: left; line-height: 1.5;">
+                Ao utilizar este aplicativo de chamadas, você concorda que:<br><br>
+                <strong>1.</strong> Não utilizará a rede para exibir conteúdo ilegal, assédio ou qualquer infração ao ECA.<br>
+                <strong>2.</strong> Denúncias enviarão seu ID para o sistema e resultarão em banimento e bloqueio imediato.<br>
+            </p>
+            <button id="btn-accept-terms" style="background: var(--accent-red); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px;">Eu Aceito e Compreendo</button>
+        </div>
+    </div>
 
     <div id="friend-request-popup" style="display: none; position: fixed; top: 30px; right: 30px; background: var(--bg-tertiary); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--accent-red); box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; width: 280px; animation: slideIn 0.3s ease;">
         <div style="font-size: 12px; font-weight: 900; margin-bottom: 12px; color: var(--accent-red); text-transform: uppercase;">NOVO PEDIDO DE AMIZADE</div>
@@ -158,8 +171,15 @@
                 <button id="toggle-audio-btn" title="Controle de Áudio">
                     <i class="fa-solid fa-volume-xmark"></i> Mutado
                 </button>
+                
                 <button id="stop-call-btn" title="Encerrar Chamada" style="color: var(--accent-red); margin-left: 10px;">
                     <i class="fa-solid fa-phone-slash"></i> Encerrar
+                </button>
+
+                <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
+
+                <button id="report-btn" title="Denunciar e Bloquear Usuário" style="color: #ff9800;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Reportar
                 </button>
             </div>
         </div>
@@ -174,13 +194,41 @@
         
         const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
         
+        // Elementos da Interface
         const videoEl = document.getElementById('remote-video');
         const emptyState = document.getElementById('empty-state');
         const statusText = document.getElementById('status-text');
         const videoControls = document.getElementById('video-controls');
         const audioBtn = document.getElementById('toggle-audio-btn');
         const stopCallBtn = document.getElementById('stop-call-btn');
+        const reportBtn = document.getElementById('report-btn');
+        const termsPopup = document.getElementById('terms-popup');
 
+        // --- SISTEMA DE TERMOS E DENÚNCIA ---
+        if (!localStorage.getItem('termosAceitos')) {
+            document.getElementById('btn-accept-terms').onclick = () => {
+                localStorage.setItem('termosAceitos', 'true');
+                termsPopup.style.display = 'none';
+            };
+        } else {
+            termsPopup.style.display = 'none';
+        }
+
+        let usuariosBloqueados = JSON.parse(localStorage.getItem('bloqueadosP2P')) || [];
+
+        reportBtn.addEventListener('click', () => {
+            if (currentPeerId) {
+                if(!usuariosBloqueados.includes(currentPeerId)){
+                    usuariosBloqueados.push(currentPeerId);
+                    localStorage.setItem('bloqueadosP2P', JSON.stringify(usuariosBloqueados));
+                }
+                if(socket) socket.emit('reportar-usuario', { infrator: currentPeerId, denunciante: myId });
+                alert("Usuário denunciado e bloqueado! Você não receberá mais chamadas dele.");
+                encerrarChamada();
+            }
+        });
+
+        // --- CONTROLES DE CHAMADA ---
         audioBtn.addEventListener('click', () => {
             if (videoEl.muted) {
                 videoEl.muted = false;
@@ -195,7 +243,6 @@
             }
         });
 
-        // Função de Encerrar Chamada
         function encerrarChamada() {
             if (peerConnection) {
                 peerConnection.close();
@@ -223,9 +270,9 @@
                 currentPeerId = null;
             }
         }
-
         stopCallBtn.addEventListener('click', encerrarChamada);
 
+        // --- SISTEMA DE LOGIN ---
         function loadProfile(user) {
             myId = user.id;
             document.getElementById('my-name').textContent = user.username;
@@ -247,15 +294,22 @@
             loadProfile(user);
         });
 
+        // --- SISTEMA DE CONEXÃO E P2P ---
         function connectServer(userData) {
             socket = io('https://meu-servidor-discord-production-9962.up.railway.app', {
                 transports: ['websocket']
             });
             
             socket.on('connect', () => console.log('Conectado ao Railway'));
-            socket.emit('registrar', userData);
+            
+            // Carrega os amigos salvos no PC e envia junto com os dados do usuário
+            const savedFriends = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
+            socket.emit('registrar', { user: userData, friends: savedFriends });
 
             socket.on('carregar-amigos', (amigos) => {
+                // Salva a lista de amigos localmente sempre que atualizar
+                localStorage.setItem('meusContatosP2P', JSON.stringify(amigos));
+                
                 const listContainer = document.getElementById('friends-list');
                 listContainer.innerHTML = ''; 
                 
@@ -302,6 +356,12 @@
             });
 
             socket.on('chamada-recebida', async data => {
+                // Checa se o usuário que está ligando está na lista de bloqueados
+                if(usuariosBloqueados.includes(data.de)) {
+                    console.log("Chamada bloqueada de: ", data.de);
+                    return; // Ignora a chamada
+                }
+
                 currentPeerId = data.de;
                 createPeer(data.de);
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -322,7 +382,6 @@
                 if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
             });
 
-            // OUVINTE PARA QUANDO O AMIGO DESLIGAR A CHAMADA
             socket.on('chamada-encerrada', () => {
                 encerrarChamada();
             });
@@ -346,6 +405,12 @@
         }
 
         async function iniciarChamada(friendId) {
+            // Impede ligar para quem está bloqueado
+            if(usuariosBloqueados.includes(friendId)) {
+                alert("Você bloqueou este usuário.");
+                return;
+            }
+
             try {
                 localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 createPeer(friendId);
@@ -358,12 +423,23 @@
                 document.querySelector('.radar').className = "fa-solid fa-tower-broadcast radar";
                 document.querySelector('.radar').style.color = "var(--green)";
                 statusText.textContent = "Transmitindo...";
+                videoControls.style.display = 'flex';
+                
+                // Trata o botão nativo de parar do navegador
+                localStream.getVideoTracks()[0].onended = () => {
+                    encerrarChamada();
+                };
+
             } catch (err) { console.error("Erro na chamada:", err); }
         }
 
         function addFriend() {
             const friendId = document.getElementById('new-friend-id').value;
             if (friendId && myId) {
+                if(usuariosBloqueados.includes(friendId)) {
+                    alert("Este usuário está bloqueado.");
+                    return;
+                }
                 socket.emit('adicionar-amigo', { meuId: myId, amigoId: friendId });
                 document.getElementById('new-friend-id').value = '';
             } else {

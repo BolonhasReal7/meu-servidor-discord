@@ -19,12 +19,26 @@ let friends = {}; // friends[discordId] = [lista de IDs de amigos]
 io.on('connection', (socket) => {
   console.log('Novo usuário conectado:', socket.id);
 
-  socket.on('registrar', (user) => {
+  socket.on('registrar', (data) => {
+    // Agora aceita tanto o formato antigo quanto o novo com os amigos do PC
+    const user = data.user || data; 
+    const clientFriends = data.friends || [];
+
     users[user.id] = socket.id;
     userData[user.id] = user;
     if(!friends[user.id]) friends[user.id] = [];
     
-    // Manda a lista de amigos preenchida
+    // Injeta os amigos salvos no LocalStorage para o servidor
+    clientFriends.forEach(amigo => {
+        if(!friends[user.id].includes(amigo.discordId)) {
+            friends[user.id].push(amigo.discordId);
+        }
+        if(!userData[amigo.discordId]) {
+            userData[amigo.discordId] = { username: amigo.username, avatar: amigo.avatar, id: amigo.discordId };
+        }
+    });
+
+    // Manda a lista de amigos atualizada de volta
     const listaAmigos = friends[user.id].map(amigoId => ({
         discordId: amigoId,
         username: userData[amigoId]?.username || "Desconhecido",
@@ -64,27 +78,38 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- LOG DE SEGURANÇA / REPORT ---
+  socket.on('reportar-usuario', (data) => {
+      console.log(`\n🚨 [ALERTA DE SEGURANÇA]`);
+      console.log(`O Usuário ${data.denunciante} REPORTOU e BLOQUEOU o Usuário ${data.infrator}!`);
+      console.log(`Por favor, verifique o ID do infrator para possível banimento da rede.\n`);
+  });
+
   // --- ROTAS DE CHAMADA WEBRTC ---
   
   socket.on('chamar-amigo', (data) => {
     const targetSocket = users[data.para];
     if (targetSocket) {
-      io.to(targetSocket).emit('chamada-recebida', { offer: data.offer, de: socket.id });
+      io.to(targetSocket).emit('chamada-recebida', { offer: data.offer, de: data.deId });
     }
   });
 
   socket.on('responder-chamada', (data) => {
-    io.to(data.para).emit('resposta-recebida', data.answer);
+    const targetSocket = users[data.para];
+    if (targetSocket) {
+        io.to(targetSocket).emit('resposta-recebida', data.answer);
+    }
   });
 
   socket.on('ice-candidate', (data) => {
-    io.to(data.para).emit('ice-candidate', data.candidate);
+    const targetSocket = users[data.para];
+    if (targetSocket) {
+        io.to(targetSocket).emit('ice-candidate', data.candidate);
+    }
   });
 
-  // NOVA ROTA: REPASA O ENCERRAMENTO DA CHAMADA
   socket.on('encerrar-chamada', (data) => {
-      // Se ele passou um discordId, pegamos o socket, se passou o socketId, usamos direto
-      const targetSocket = users[data.para] || data.para; 
+      const targetSocket = users[data.para]; 
       if(targetSocket) {
           io.to(targetSocket).emit('chamada-encerrada');
       }
