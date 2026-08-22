@@ -33,7 +33,6 @@
         }
 
         .sidebar-content { padding: 25px 20px; display: flex; flex-direction: column; gap: 20px; flex: 1; overflow-y: auto; }
-
         .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; }
         
         #main-container { flex: 1; display: flex; flex-direction: column; padding: 25px; }
@@ -61,13 +60,9 @@
         }
         button.btn-primary:hover { background: var(--accent-red-hover); transform: translateY(-2px); }
 
-        .profile-area { 
-            display: flex; align-items: center; gap: 12px; background: var(--bg-tertiary); 
-            padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; 
-        }
+        .profile-area { display: flex; align-items: center; gap: 12px; background: var(--bg-tertiary); padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-red); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
 
-        /* Lista de Amigos */
         .friend-card { display: flex; align-items: center; justify-content: space-between; background: var(--bg-tertiary); padding: 10px; border-radius: 8px; border: 1px solid transparent; transition: 0.2s; margin-bottom: 8px; }
         .friend-card:hover { border-color: var(--accent-red); }
         .friend-info { display: flex; align-items: center; gap: 10px; }
@@ -75,7 +70,6 @@
         .btn-call-small { background: var(--green); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; font-size: 12px; }
         .btn-call-small:hover { background: #1e8749; }
 
-        /* --- MINI-PERFIL TOKYO GHOUL --- */
         .dev-wrapper { margin-top: auto; }
         .dev-card { background: var(--bg-tertiary); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid var(--card-border); transition: all 0.3s ease; }
         .dev-card:hover { box-shadow: 0 0 20px rgba(218, 55, 60, 0.3); border-color: var(--accent-red); }
@@ -90,25 +84,21 @@
         .radar { font-size: 55px; color: var(--accent-red); animation: radar-pulse 2s infinite; }
         @keyframes radar-pulse { 0% { transform: scale(0.9); opacity: 0.3; } 50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px var(--accent-red)); } 100% { transform: scale(0.9); opacity: 0.3; } }
         
-        /* Animação do Pop-up */
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
         #status-text { color: var(--text-muted); font-size: 18px; margin: 0; font-weight: bold; }
 
         #video-controls { display: none; position: absolute; bottom: 30px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 12px; box-shadow: 0px 8px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
-        #video-controls button { width: auto; background: transparent; font-size: 15px; padding: 8px 16px; border: none; color: white; cursor: pointer;}
+        #video-controls button { width: auto; background: transparent; font-size: 15px; padding: 8px 16px; border: none; color: white; cursor: pointer; transition: 0.2s;}
         #video-controls button:hover { background: rgba(255,255,255,0.1); border-radius: 8px; }
         #video-controls button.active { color: var(--accent-red); }
     </style>
 </head>
 <body>
 
-    <!-- Pop-up de Pedido de Amizade -->
     <div id="friend-request-popup" style="display: none; position: fixed; top: 30px; right: 30px; background: var(--bg-tertiary); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--accent-red); box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1000; width: 280px; animation: slideIn 0.3s ease;">
         <div style="font-size: 12px; font-weight: 900; margin-bottom: 12px; color: var(--accent-red); text-transform: uppercase;">NOVO PEDIDO DE AMIZADE</div>
-        <div id="request-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-            <!-- Avatar e Nome entram aqui automaticamente -->
-        </div>
+        <div id="request-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;"></div>
         <div style="display: flex; gap: 10px;">
             <button id="btn-accept" style="flex: 1; background: var(--green); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">Aceitar</button>
             <button id="btn-reject" style="flex: 1; background: var(--bg-primary); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px;">Recusar</button>
@@ -117,7 +107,6 @@
 
     <div id="sidebar">
         <div class="sidebar-content">
-            <!-- Adicionar Amigo -->
             <div>
                 <h3 class="section-title">Adicionar Contato</h3>
                 <div class="input-group">
@@ -126,7 +115,6 @@
                 </div>
             </div>
 
-            <!-- Lista de Amigos -->
             <div>
                 <h3 class="section-title">Meus Contatos</h3>
                 <div id="friends-list">
@@ -134,14 +122,11 @@
                 </div>
             </div>
 
-            <!-- Desenvolvedor -->
             <div class="dev-wrapper">
                 <h3 class="section-title" style="margin-bottom: 12px;">Desenvolvedor</h3>
                 <div class="dev-card">
                     <div class="dev-banner"></div>
-                    <div class="dev-avatar-container">
-                        <div class="dev-status"></div>
-                    </div>
+                    <div class="dev-avatar-container"><div class="dev-status"></div></div>
                     <div class="dev-info">
                         <div class="dev-name">Lanzin <i class="fa-solid fa-bolt" style="font-size: 13px; color: var(--accent-red);"></i></div>
                         <div class="dev-user">lanzin.silva79</div>
@@ -151,14 +136,10 @@
         </div>
 
         <div class="profile-area">
-            <div class="avatar" id="my-avatar">
-                <i class="fa-brands fa-discord" style="color: white; font-size: 22px;"></i>
-            </div>
+            <div class="avatar" id="my-avatar"><i class="fa-brands fa-discord" style="color: white; font-size: 22px;"></i></div>
             <div style="flex: 1;">
                 <div id="my-name" style="font-weight: bold; font-size: 14px; color: white;">Offline</div>
-                <button id="login-btn" style="padding: 6px; font-size: 11px; margin-top: 6px; background: var(--bg-primary); color: var(--text-muted); border: none; border-radius: 4px; cursor: pointer;">
-                    <i class="fa-solid fa-plug"></i> Conectar
-                </button>
+                <button id="login-btn" style="padding: 6px; font-size: 11px; margin-top: 6px; background: var(--bg-primary); color: var(--text-muted); border: none; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-plug"></i> Conectar</button>
             </div>
         </div>
     </div>
@@ -171,11 +152,14 @@
                 <span style="color: #666; font-size: 13px; letter-spacing: 0.5px;">SISTEMA P2P OFFLINE</span>
             </div>
 
-            <video id="remote-video" autoplay playsinline muted></video>
+            <video id="remote-video" autoplay playsinline></video>
             
             <div id="video-controls">
                 <button id="toggle-audio-btn" title="Controle de Áudio">
                     <i class="fa-solid fa-volume-xmark"></i> Mutado
+                </button>
+                <button id="stop-call-btn" title="Encerrar Chamada" style="color: var(--accent-red); margin-left: 10px;">
+                    <i class="fa-solid fa-phone-slash"></i> Encerrar
                 </button>
             </div>
         </div>
@@ -185,6 +169,9 @@
     <script>
         const { ipcRenderer } = require('electron');
         let socket, peerConnection, myId;
+        let localStream = null; 
+        let currentPeerId = null;
+        
         const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
         
         const videoEl = document.getElementById('remote-video');
@@ -192,6 +179,7 @@
         const statusText = document.getElementById('status-text');
         const videoControls = document.getElementById('video-controls');
         const audioBtn = document.getElementById('toggle-audio-btn');
+        const stopCallBtn = document.getElementById('stop-call-btn');
 
         audioBtn.addEventListener('click', () => {
             if (videoEl.muted) {
@@ -206,6 +194,37 @@
                 audioBtn.style.color = "var(--accent-red)";
             }
         });
+
+        // Função de Encerrar Chamada
+        function encerrarChamada() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            videoEl.style.display = 'none';
+            videoEl.srcObject = null;
+            videoControls.style.display = 'none';
+            emptyState.style.display = 'flex';
+            
+            const radar = document.querySelector('.radar');
+            if(radar) {
+                radar.className = "fa-solid fa-radar radar";
+                radar.style.color = "var(--accent-red)";
+            }
+            statusText.textContent = "Aguardando Sinal...";
+
+            if (currentPeerId && socket) {
+                socket.emit('encerrar-chamada', { para: currentPeerId });
+                currentPeerId = null;
+            }
+        }
+
+        stopCallBtn.addEventListener('click', encerrarChamada);
 
         function loadProfile(user) {
             myId = user.id;
@@ -229,7 +248,11 @@
         });
 
         function connectServer(userData) {
-            socket = io('https://meu-servidor-discord-production.up.railway.app/'); 
+            socket = io('https://meu-servidor-discord-production-9962.up.railway.app', {
+                transports: ['websocket']
+            });
+            
+            socket.on('connect', () => console.log('Conectado ao Railway'));
             socket.emit('registrar', userData);
 
             socket.on('carregar-amigos', (amigos) => {
@@ -257,12 +280,10 @@
                 });
             });
 
-            // Escuta quando chega um pedido de amizade
             socket.on('pedido-amizade', (dadosPedido) => {
                 const popup = document.getElementById('friend-request-popup');
                 const info = document.getElementById('request-info');
                 
-                // Monta a foto e o nome de quem enviou
                 info.innerHTML = `
                     <div style="width: 36px; height: 36px; border-radius: 50%; background-image: url('https://cdn.discordapp.com/avatars/${dadosPedido.deId}/${dadosPedido.avatar}.png'); background-size: cover; border: 2px solid var(--bg-secondary);"></div>
                     <span style="font-size: 14px; font-weight: bold; color: white;">${dadosPedido.nome}</span>
@@ -270,19 +291,18 @@
                 
                 popup.style.display = 'block';
 
-                // Ação do botão Aceitar
                 document.getElementById('btn-accept').onclick = () => {
                     socket.emit('aceitar-amizade', { meuId: myId, deId: dadosPedido.deId });
                     popup.style.display = 'none';
                 };
 
-                // Ação do botão Recusar
                 document.getElementById('btn-reject').onclick = () => {
                     popup.style.display = 'none';
                 };
             });
 
             socket.on('chamada-recebida', async data => {
+                currentPeerId = data.de;
                 createPeer(data.de);
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnection.createAnswer();
@@ -299,11 +319,17 @@
             });
 
             socket.on('ice-candidate', candidate => {
-                peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                if(peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            });
+
+            // OUVINTE PARA QUANDO O AMIGO DESLIGAR A CHAMADA
+            socket.on('chamada-encerrada', () => {
+                encerrarChamada();
             });
         }
 
         function createPeer(targetSocketId) {
+            currentPeerId = targetSocketId;
             peerConnection = new RTCPeerConnection(config);
             
             peerConnection.onicecandidate = e => {
@@ -321,9 +347,9 @@
 
         async function iniciarChamada(friendId) {
             try {
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 createPeer(friendId);
-                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
