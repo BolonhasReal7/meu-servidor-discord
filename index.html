@@ -206,7 +206,10 @@
             <div class="avatar" id="my-avatar"><i class="fa-brands fa-discord" style="color: white; font-size: 22px;"></i></div>
             <div style="flex: 1;">
                 <div id="my-name" style="font-weight: bold; font-size: 14px; color: white;">Offline</div>
-                <button id="login-btn" style="padding: 6px; font-size: 11px; margin-top: 6px; background: var(--bg-primary); color: var(--text-muted); border: none; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-plug"></i> Conectar</button>
+                <div style="display: flex; gap: 5px; margin-top: 6px;">
+                    <button id="login-btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--bg-primary); color: var(--text-muted); border: none; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-plug"></i> Conectar</button>
+                    <button id="logout-btn" style="display: none; padding: 6px; font-size: 11px; background: transparent; color: var(--accent-red); border: 1px solid var(--accent-red); border-radius: 4px; cursor: pointer;" title="Sair da Conta"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
             </div>
         </div>
     </div>
@@ -440,14 +443,28 @@
         }
         document.getElementById('stop-call-btn').addEventListener('click', encerrarChamada);
 
+        // --- ATUALIZAÇÃO DO PERFIL E LOGOUT ---
         function loadProfile(user) {
             myId = user.id;
             document.getElementById('my-name').textContent = user.global_name || user.username;
             document.getElementById('my-avatar').style.backgroundImage = `url(https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png)`;
             document.getElementById('my-avatar').innerHTML = ''; 
+            
+            // Alterna os botões
             document.getElementById('login-btn').style.display = 'none';
+            document.getElementById('logout-btn').style.display = 'block';
+            
             connectServer(user);
         }
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            if(confirm("Deseja realmente sair da sua conta?")) {
+                localStorage.removeItem('discordUser');
+                if(socket) socket.disconnect();
+                window.location.reload();
+            }
+        });
+        // --------------------------------------
 
         const savedUser = localStorage.getItem('discordUser');
         if (savedUser) loadProfile(JSON.parse(savedUser));
@@ -456,7 +473,6 @@
 
         let amigosStatus = {};
 
-        // --- SISTEMA DE RENDERIZAÇÃO COM BOTÃO DE REMOVER --- //
         function renderizarListaAmigos(amigos) {
             const listContainer = document.getElementById('friends-list');
             listContainer.innerHTML = ''; 
@@ -507,7 +523,6 @@
                 if(savedStatus) socket.emit('atualizar-status', { id: myId, status: savedStatus });
             });
 
-            // --- PROCESSAMENTO DE NOVAS AMIZADES --- //
             socket.on('amizade-aceita', (novoAmigo) => {
                 let meusAmigos = JSON.parse(localStorage.getItem('meusContatosP2P')) || [];
                 if (!meusAmigos.some(a => a.discordId === novoAmigo.discordId)) {
@@ -524,7 +539,6 @@
                 renderizarListaAmigos(meusAmigos);
             });
 
-            // --- SISTEMA DE PRESENÇA (ONLINE/OFFLINE) --- //
             socket.on('disconnect', () => {
                 document.getElementById('my-name').innerHTML = 'Desconectado <i class="fa-solid fa-triangle-exclamation"></i>';
                 document.getElementById('my-name').style.color = 'var(--accent-red)';
@@ -543,7 +557,6 @@
                 }
             });
 
-            // ------------------------------------------ //
             socket.on('carregar-amigos', (amigos) => {
                 localStorage.setItem('meusContatosP2P', JSON.stringify(amigos));
                 renderizarListaAmigos(amigos);
